@@ -70,7 +70,7 @@ async function fetchText(url){
       if(r.ok) return await r.text();
       if(r.status===404) return "";                                   // the server answered: there is none
       if(r.status!==429&&r.status<500) break;
-    }catch(e){ if(n) break; }
+    }catch(e){ if(e.notInDemo) throw e; if(n) break; }
     await wait(800);
   }
   throw new Error("no answer");
@@ -99,15 +99,15 @@ async function findPmcid(doi){
 /* Europe PMC first. NCBI holds the same article and is asked too if there is no answer in 2.5 s. */
 async function downloadFullText(doi){
   const pmcid=await findPmcid(doi); if(!pmcid) return null;
-  let failed=false, done=false;
+  let failed=null, done=false;
   const ask=async(url,delay)=>{
     await wait(delay); if(done) throw new Error("not needed");
-    let xml; try{ xml=await fetchText(url); }catch(e){ failed=true; throw e; }
+    let xml; try{ xml=await fetchText(url); }catch(e){ failed=e; throw e; }
     const plain=articleText(xml,doi,false); if(!plain) throw new Error("no full text");
     done=true; return [plain,articleText(xml,doi,true)];
   };
   try{ return await Promise.any([ask(`${EPMC}/${pmcid}/fullTextXML`,0),ask(NCBI+pmcid.slice(3),2500)]); }
-  catch(e){ if(failed) throw new Error("no answer"); return null; }
+  catch(e){ if(failed) throw failed; return null; }
 }
 /* Saved by DOI in the browser's cache, so a paper checked once works with no network. */
 const cacheKey=doi=>"/fulltext-cache/"+encodeURIComponent(doi);
@@ -118,11 +118,11 @@ async function loadFullText(item){
   if(had&&(had.state==="full"||had.state==="none")) return had;
   if(had&&had.state==="loading") return had.promise;
   const job=(async()=>{
-    let texts=await fromCache(item.doi);
+    let texts=DEMO?null:await fromCache(item.doi);
     try{
-      if(!texts){ texts=await downloadFullText(item.doi); if(texts) await toCache(item.doi,texts); }
+      if(!texts){ texts=await downloadFullText(item.doi); if(texts&&!DEMO) await toCache(item.doi,texts); }
       return FULLTEXT[item.doi]=texts?{state:"full",texts}:{state:"none"};
-    }catch(e){ return FULLTEXT[item.doi]={state:"error"}; }
+    }catch(e){ return FULLTEXT[item.doi]={state:"error",why:e.notInDemo?NOT_IN_DEMO+".":""}; }
   })();
   FULLTEXT[item.doi]={state:"loading",promise:job};
   return job;
@@ -159,7 +159,7 @@ function judgeQuote(quote,item){
   if(!short) for(const t of [inAbs,...bodies].filter(Boolean)){ const c=findClose(q,t); if(c) return verdict("close",item,c.text,`${Math.round(c.score*100)}% alike.${meaningChanged(q,quoteWords(c.text).flat)}`); }
   if(short) return verdict("cannot",item,"",`Too short: a quotation needs at least ${MIN_QUOTE} words.`);
   if(full.state==="full") return verdict("notFound",item,"","The abstract and the open-access full text were searched.");
-  if(full.state==="error") return verdict("cannot",item,"","The full text could not be fetched. That says nothing about the quote.");
+  if(full.state==="error") return verdict("cannot",item,"",full.why||"The full text could not be fetched. That says nothing about the quote.");
   if(full.state!=="none") return verdict("cannot",item,"",full.state==="loading"?"Looking for the full text now.":"The full text has not been looked up yet.");
   return inAbs?verdict("notAbstract",item,"","No open-access full text is available."):verdict("cannot",item,"","No abstract and no open-access full text are available.");
 }
