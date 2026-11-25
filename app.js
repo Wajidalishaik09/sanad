@@ -743,15 +743,31 @@ function refreshGate1(){
   gateChip(1, ready?"open":"locked", ready?`${n} sources approved`:"you approve the sources");
 }
 const kindOf = label => ({"Verified":"ok","AI reasoning":"info","Not found":"bad"})[label]||"warn";
+/* What the badge SHOWS when the Auditor has a result for a cited reference.
+   Display only: c.label is never changed, so no verdict or gate depends on this. */
+const AUDIT_BADGE={
+  "Not found":["Reference not found","bad"], "Retracted":["Retracted","bad"], "Under notice":["Under notice","warn"],
+  "Wrong paper":["Details do not match","bad"], "Wrong authors":["Details do not match","bad"], "Mismatch":["Details do not match","warn"],
+  "Cannot check":["Cannot check","warn"]
+};
+const auditOf = i => i.retraction&&!/concern/i.test(i.retraction) ? "Retracted" : i.audit;
+function badgeFor(c){
+  const found=(c.srcs||[c.src]).map(id=>LIB.find(i=>i.id===id)).filter(i=>i&&AUDIT_BADGE[auditOf(i)]);
+  if(!found.length) return {text:c.label,k:kindOf(c.label),note:""};
+  const red=i=>AUDIT_BADGE[auditOf(i)][1]==="bad";
+  const worst=found.find(red)||found[0], [text,k]=AUDIT_BADGE[auditOf(worst)];
+  const own=c.label==="Not found"&&k!=="bad";                         // a red quote result keeps its own words; "Cannot check" is never red
+  return {text:own?c.label:text, k:own?"bad":k, note:`Auditor on ${found.map(i=>`${i.id}: ${auditOf(i)}`).join(", ")}. Claim: ${c.label}.`};
+}
 function renderDraft(draft){
   saveState();
   const box=$("#draft"); box.innerHTML="";
   box.appendChild(el("h5",null,"Draft: every claim carries the library ID it came from"));
   if(!draft.claims.length) box.appendChild(el("div","empty","Not found. Nothing in your sources survived the checks."));
   draft.claims.forEach((c,i)=>{
-    const k=kindOf(c.label), d=el("div","claim "+k);
+    const {text,k,note}=badgeFor(c), d=el("div","claim "+k);
     d.style.animationDelay=(i*0.09)+"s";
-    d.innerHTML=`${esc(c.text)} <span class="src">[${esc(c.src)}]</span><span class="tag ${k}">${esc(c.label)}</span>`
+    d.innerHTML=`${esc(c.text)} <span class="src">[${esc(c.src)}]</span><span class="tag ${k}">${esc(text)}</span>${note?`<div class="quote">${esc(note)}</div>`:""}`
       +(c.quote?`<div class="quote">Words found in the abstract: “${esc(c.quote)}”</div>`:`<div class="quote none">No supporting sentence was found in the abstract.</div>`)
       +(c.accepted?`<div class="quote">You kept this because: ${esc(c.accepted)}</div>`:"");
     d.appendChild(accessLinks([c.src])); box.appendChild(d);
@@ -898,7 +914,8 @@ function acceptClaim(draft,c,reason){
 }
 function claimRow(c){
   const r=el("div","gate-row");
-  r.appendChild(el("p",null,`${esc(c.text)} <b>[${esc(c.src)}] ${esc(c.label)}</b>`));
+  r.appendChild(el("p",null,`${esc(c.text)} <b>[${esc(c.src)}] ${esc(badgeFor(c).text)}</b>`));
+  if(badgeFor(c).note) r.appendChild(el("div","quote",esc(badgeFor(c).note)));
   if(c.why) r.appendChild(el("div","quote",esc(c.why)));
   (c.quotes||[]).forEach(v=>r.insertAdjacentHTML("beforeend",quoteLine(v)));
   if(c.quote&&!c.student) r.appendChild(el("div","quote",`Words found in the abstract: “${esc(c.quote)}”`));

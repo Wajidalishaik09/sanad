@@ -178,7 +178,7 @@ function drawBadges(){
   const base=editor.getBoundingClientRect().top; let floor=0;
   const claims=studentClaims();
   claims.forEach(c=>{
-    const k=kindOf(c.label), b=el("div","margin-badge "+k,`<b>${esc(c.label)}</b><span>${esc(c.srcs.join(", "))} ${esc(c.why)}${c.accepted?" You kept it because: "+esc(c.accepted):""}</span>${c.quotes.map(quoteLine).join("")}`);
+    const {text,k,note}=badgeFor(c), b=el("div","margin-badge "+k,`<b>${esc(text)}</b><span>${note?esc(note)+" ":""}${esc(c.srcs.join(", "))} ${esc(c.why)}${c.accepted?" You kept it because: "+esc(c.accepted):""}</span>${c.quotes.map(quoteLine).join("")}`);
     b.appendChild(accessLinks(c.srcs)); box.appendChild(b);
     b.dataset.want=topOf(c)-base;
   });
