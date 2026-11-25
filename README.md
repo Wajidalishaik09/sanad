@@ -7,28 +7,30 @@ citation. Built for the SP Jain AI Club Hackathon 2026 by Team 2.
 
 ## Run it
 
-No build step, no install. Either open `index.html` directly, or:
+No build step, no install. Node 18 or newer:
 
-    cd sanad && python3 -m http.server 8000
+    cp .env.example .env      # add your own keys; .env is git-ignored
+    node server.js            # http://localhost:8000
 
-then visit http://localhost:8000
+With no network, press **Demo mode**: every lookup uses recorded real data.
 
-## What works now
+## The seven agents
 
-The verification engine. Open the **Verify** tab, press *Load demo set*, then *Check these references*.
-The demo set contains, in order: two real papers, one real DOI attached to the wrong paper, one
-fabricated DOI, and one reference with no DOI at all that does not exist.
+Scout finds, Librarian organises, Scribe writes, Auditor checks references, Quote Checker checks
+quotes, Challenger argues back, Access finds a legal open copy. **Access is agent 7. It shows links
+only (from Unpaywall) and never changes a verdict, a trust label or a gate.** If Unpaywall gives no
+answer it says "Could not check right now", never "no open copy".
 
 ## Files
 
 | File | Contains |
 |---|---|
-| `index.html` | The three tabs: Verify, Find sources, Library |
-| `style.css` | Design tokens at the top. Change `--font-body` to reskin the whole app |
-| `app.js` | Verification engine, search, library, APA 7 export |
-| `CLAUDE_CODE_PROMPT.md` | Paste into Claude Code to continue building |
-
-## Before the demo
-
-Change `CONTACT` at the top of `app.js` to a real team address — it puts us in Crossref's polite pool
-(10 requests/second instead of 5).
+| `app.js` | Verification engine, search, Scribe, Challenger, gates, export |
+| `store.js` | Saving in the browser |
+| `librarian.js` | Folders, tags, notes, duplicates |
+| `writing.js` | Writing surface and @ citations |
+| `quotecheck.js` | Quote Checker |
+| `access.js` | Access: links to open copies |
+| `fixtures.js`, `fixtures/` | Demo mode and recorded data |
+| `api/`, `lib/` | Server routes; the only place keys are used |
+| `scripts/capture-fixtures.js` | Records the demo data |

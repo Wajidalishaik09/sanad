@@ -1,1 +1,4 @@
-{ "version": 2 }
+{
+  "version": 2,
+  "rewrites": [{ "source": "/api/unpaywall", "destination": "/api/unpaywall" }]
+}

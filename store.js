@@ -10,7 +10,7 @@ let storeReady=false, saveTimer=null;
 
 function snapshot(){
   return { lib:LIB, nextId:NEXT_ID, folders:FOLDERS, dismissed:DISMISSED, draft:DRAFT, writing:WRITING,
-           refused:REFUSED, log:LOG, question:$("#q").value, unlocked };
+           refused:REFUSED, log:LOG, question:$("#q").value, unlocked, access:accessToSave() };
 }
 function saveState(){
   if(!storeReady) return;                // never overwrite saved work before it has been read
@@ -48,7 +48,7 @@ function loadState(){
     list(s.log).forEach(e=>{ const t=new Date(e.t); if(!isNaN(t)) LOG.push({t,who:text(e.who),what:text(e.what),kind:text(e.kind)}); });
     $("#q").value=text(s.question);
     DRAFT=loadDraft(s.draft);
-    WRITING=loadWriting(s.writing);
+    WRITING=loadWriting(s.writing); loadAccess(s.access);
     unlocked=Math.min(5,Math.max(Number(s.unlocked)||0,DRAFT?3:0));
     if(!LIB.length&&!WRITING.segments.length) unlocked=0;
   }

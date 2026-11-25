@@ -754,8 +754,9 @@ function renderDraft(draft){
     d.innerHTML=`${esc(c.text)} <span class="src">[${esc(c.src)}]</span><span class="tag ${k}">${esc(c.label)}</span>`
       +(c.quote?`<div class="quote">Words found in the abstract: “${esc(c.quote)}”</div>`:`<div class="quote none">No supporting sentence was found in the abstract.</div>`)
       +(c.accepted?`<div class="quote">You kept this because: ${esc(c.accepted)}</div>`:"");
-    box.appendChild(d);
+    d.appendChild(accessLinks([c.src])); box.appendChild(d);
   });
+  fillAccess();
   box.appendChild(el("div","blocked",
     `<strong>${draft.blocked}</strong> claim(s) refused in this draft for citing outside your library or writing a reference. <strong>${REFUSED}</strong> refused this session.`));
 }
@@ -954,6 +955,7 @@ function aiStatement(draft){
     LOG.some(e=>e.who==="Challenger") ? "· Challenger — searched for contradicting work and reviewed the composition of the source base." : "· Challenger — not used.",
     ...studentStatement(),
     ...quoteStatement(draft),
+    "· Access — linked free copies found by Unpaywall (no AI; it affects no verdict).",
     "",
     `Sources cited: ${citedSources(draft).length}, each opened and approved by the author before use.`,
     ...citedSources(draft).map(i=>`  ${i.id} audit result: ${i.audit||"not audited"}`),

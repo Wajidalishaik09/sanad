@@ -55,7 +55,7 @@ function flagsOf(i){
   const f=[];
   if(i.retraction) f.push(["Retracted","fail"]);
   if(!i.abstract) f.push(["No abstract: nothing can be quoted","fail"]);
-  if(i.isOA===false) f.push(["No open access","unknown"]);
+  if(i.isOA===false) f.push(["OpenAlex lists no open access","unknown"]);
   if(i.isOA===null||i.isOA===undefined) f.push(["Open access not known","unknown"]);
   return f;
 }
@@ -192,6 +192,7 @@ function libraryCard(i){
   c.appendChild(el("div","c-title",`<span class="src">${i.id}</span> ${esc(i.title)}`));
   c.appendChild(el("div","c-meta",`${esc(i.authors.slice(0,3).join(", "))}${i.authors.length>3?" et al.":""} · ${i.year||"n.d."} · ${esc(i.venue)} · <code>${esc(i.doi)}</code>${i.mergedFrom.length?` · includes ${esc(i.mergedFrom.join(", "))}`:""}`));
   const flags=el("div","checks"); flagsOf(i).forEach(([l,k])=>flags.appendChild(el("span","check "+k,esc(l)))); c.appendChild(flags);
+  c.appendChild(accessChip(i));
   c.appendChild(tagRow(i));
   const row=el("div","lib-row");
   row.append(folderPicker(i),inputRow("Add your own tag","Add",v=>addTag(i,v)),button("Remove",()=>{ if(removeSource(i)) changed(); }));
@@ -203,6 +204,7 @@ function drawSources(){
   $("#libTitle").textContent=`Your library: ${items.length} of ${LIB.length}`;
   if(!items.length) box.appendChild(el("div","empty",LIB.length?"No source matches this folder and tag.":"Your library is empty. Ask a question and approve some sources."));
   items.forEach(i=>box.appendChild(libraryCard(i)));
+  fillAccess();
 }
 
 $("#libPill").onclick=()=>{ showPanel("#slib"); drawLibrary(); };

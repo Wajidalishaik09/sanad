@@ -279,3 +279,11 @@ main{padding-top:20px;} .mast-in{padding-top:10px;padding-bottom:10px;}
 #demoBar[hidden]{display:none;} #demoBar b{font-size:20px;white-space:nowrap;} #demoBar span{flex:1;font-size:17px;} #demoBar .btn{white-space:nowrap;}
 @media(max-width:900px){.write-grid{grid-template-columns:1fr;}#demoBar{flex-wrap:wrap;height:auto;}}
 #demoBar{height:60px;}body.demo .rail{top:60px;}
+
+/* ================= access ================= */
+.access-slot{font-size:18px;} div.access-slot{margin:8px 0;}
+.access-chip{display:inline-block;border:1.5px solid currentColor;padding:3px 10px;margin-right:12px;background:var(--sunk);color:var(--ink-2);}
+.access-chip.open_copy{color:var(--ok);background:var(--ok-bg);} .access-chip.no_open_copy_found{color:var(--warn);background:var(--warn-bg);} .access-chip.cannot_check{color:var(--info);background:var(--info-bg);}
+.access-note{font-size:16px;font-style:italic;color:var(--ink-3);margin-top:4px;}
+.out{color:var(--info);text-decoration:underline;margin-right:10px;}
+.access-links{margin-top:6px;} .access-links .access-slot{display:block;}
