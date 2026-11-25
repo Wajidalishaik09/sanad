@@ -25,9 +25,11 @@ which path ran.
 | Librarian | organises | Spots the same work counted twice (preprint vs published), tags from OpenAlex topics, flags sources with no abstract or no open access. |
 | Scribe | writes | Drafts under the cite-by-ID contract. May emit library IDs and nothing else. |
 | Auditor | checks | DOI resolves, title, authors, year, retraction. Assigns the trust label. |
-| Patron | follows the money | Who funded each source (real OpenAlex grant records), flags shared funders, and shows which funders are active in your field. |
-| Isnad | traces the chain | Walks citations backwards to find shared ancestors — whether your sources are actually independent. |
+| Quote Checker | checks quotes | Looks for quoted words in the abstract, then in open-access full text (Europe PMC, NCBI). Red only if full text was searched. |
 | Challenger | argues back | Contradicting papers, thin evidence, the shape of your source base, the claim it would attack first. |
+| Access | traces to the source | Agent 7. Links only: asks Unpaywall for a legal open copy. Never changes a verdict, label or gate. No answer is "Could not check right now". |
+
+Patron and Isnad are kept behind the Extras button, outside the main flow.
 
 Two gates the student must pass: **Gate 1** nothing enters the library unapproved,
 **Gate 2** nothing exports until every claim is verified or accepted in writing.
@@ -40,9 +42,8 @@ Two gates the student must pass: **Gate 1** nothing enters the library unapprove
 surname matching across formats, year tolerance). Page renders with no console
 errors. Seven agents lay out correctly.
 
-**Never run:** every live API call, and the whole LLM path. The sandbox cannot
-reach Crossref, OpenAlex or Gemini. **The first real execution will be on your
-Mac.** Budget time for things to be wrong.
+All seven agents have been run against the live services and in demo mode with outside hosts blocked.
+The Vercel deployment has not been tested.
 
 ---
 
