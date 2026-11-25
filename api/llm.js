@@ -18,15 +18,20 @@ export default async function handler(req, res){
       if(!r.ok) throw new Error("NVIDIA "+r.status);
       text = (await r.json()).choices?.[0]?.message?.content || "";
     } else {
-      const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,{
-        method:"POST", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ systemInstruction:{parts:[{text:system}]},
-          contents:[{role:"user",parts:[{text:user}]}],
-          generationConfig:{ temperature:0.2, responseMimeType:"application/json", ...(schema?{responseSchema:schema}:{}) } })
-      });
-      if(!r.ok) throw new Error("Gemini "+r.status);
-      text = (await r.json()).candidates?.[0]?.content?.parts?.[0]?.text || "";
+      /* Gemini answers 503 when busy, so a second model stands by. */
+      let error;
+      for (const model of [process.env.GEMINI_MODEL || "gemini-3.8-flash", process.env.GEMINI_FALLBACK || "gemini-3.5-flash-lite"]){
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
+          method:"POST", headers:{ "Content-Type":"application/json", "x-goog-api-key":process.env.GEMINI_API_KEY },
+          body: JSON.stringify({ systemInstruction:{parts:[{text:system}]},
+            contents:[{role:"user",parts:[{text:user}]}],
+            generationConfig:{ temperature:0.2, responseMimeType:"application/json", ...(schema?{responseSchema:schema}:{}) } })
+        });
+        if(!r.ok){ error = new Error("Gemini "+r.status); continue; }
+        text = ((await r.json()).candidates?.[0]?.content?.parts || []).map(p=>p.text||"").join("");
+        if(text) break;
+      }
+      if(!text) throw error || new Error("Gemini returned no text");
     }
     res.status(200).json({ ok:true, text, provider });
   }catch(e){ res.status(200).json({ ok:false, error:e.message }); }
