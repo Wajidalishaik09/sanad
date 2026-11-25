@@ -1,1 +1,1 @@
-{ "rewrites": [{ "source": "/api/llm", "destination": "/api/llm" }] }
+{ "version": 2 }

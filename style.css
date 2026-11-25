@@ -202,3 +202,14 @@ footer{border-top:1px solid var(--rule);max-width:1240px;margin:0 auto;padding:2
 .log-row .what{color:var(--ink-2);}
 .log-row.human .who{color:var(--accent);}
 .log-row.block .what{color:var(--bad);font-weight:700;}
+
+/* ================= gates, quotes, refusals ================= */
+.c-abstract{font-size:16px;line-height:1.6;background:var(--sunk);padding:14px 18px;margin-bottom:12px;}
+.quote{font-size:15px;color:var(--ink-2);font-style:italic;margin-top:7px;}
+.quote.none{color:var(--ink-3);}
+.gate-row{border-top:1px solid var(--rule-2);margin-top:16px;padding-top:14px;}
+.gate-row input{margin-top:10px;}
+.pill-count.hot{background:var(--bad-bg);color:var(--bad);font-weight:700;}
+.agent.todo{border-style:dashed;opacity:.55;}
+.pill-count,.rail-right .btn{white-space:nowrap;}
+@media(max-width:1100px){.rail-in{flex-wrap:wrap;}.rail-right{padding:8px 0;}}
