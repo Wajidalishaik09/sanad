@@ -155,7 +155,8 @@ function addToLibrary(rec,how){
     abstract:rec.abstract||"", how,
     authors:(rec.authors||[]).map(a=>a.display_name||[a.given,a.family].filter(Boolean).join(" ")),
     country:rec.country||"", type:rec.type||"",
-    grants:rec.grants||[], topics:rec.topics||[], isOA:!!rec.isOA, tags:[] };
+    grants:rec.grants||[], topics:rec.topics||[], isOA:!!rec.isOA, tags:[],
+    openalexId:rec.openalexId||"" };
   LIB.push(item); libPill();
   log("You",`approved ${item.id} into the library — ${item.title.slice(0,60)}`);
   return item;
@@ -186,6 +187,7 @@ async function scout(q){
     country:(((w.authorships||[])[0]||{}).institutions||[{}])[0]?.country_code||"",
     type:w.type||"", cites:w.cited_by_count, retracted:w.is_retracted,
     abstract:rebuildAbstract(w.abstract_inverted_index),
+    openalexId:String(w.id||"").split("/").pop(),
     grants:(w.grants||[]).map(g=>({funder:g.funder_display_name||"",award:g.award_id||""})),
     topics:(w.topics||[]).slice(0,3).map(t=>t.display_name||""),
     isOA:!!(w.open_access||{}).is_oa
@@ -458,6 +460,83 @@ async function patron(question){
   return out;
 }
 
+
+/* ============================================================
+   AGENT — ISNAD : traces the chain of transmission.
+
+   Verifying that each source is real is not the same as checking
+   that your sources are independent of one another. Five papers
+   saying the same thing look like consensus; if four of them cite
+   the same older study, you have one piece of evidence wearing
+   five hats. OpenAlex publishes referenced_works on every record,
+   so the chain can actually be walked.
+   ============================================================ */
+async function isnad(){
+  agent("isnad","run","walking the citation chain");
+  pipeNote("Isnad is tracing where each claim really comes from");
+
+  /* 1. what does each of your sources cite */
+  const refsOf = {};
+  for(const item of LIB){
+    try{
+      const d = await getJSON(`${OPENALEX}/works/doi:${encodeURIComponent(item.doi)}?select=id,referenced_works&mailto=${encodeURIComponent(CONTACT)}`);
+      refsOf[item.id] = (d.referenced_works||[]).map(u=>String(u).split("/").pop());
+    }catch(e){ refsOf[item.id] = []; }
+    await wait(140);
+  }
+  const haveRefs = Object.values(refsOf).filter(r=>r.length).length;
+  if(!haveRefs){
+    agent("isnad","done","no reference lists available");
+    log("Isnad","no reference data available for these sources");
+    return { origins:LIB.length, shared:[], direct:[], note:"OpenAlex holds no reference list for these sources, so the chain cannot be walked. That is a gap in the data, not evidence of independence." };
+  }
+
+  /* 2. ancestors cited by more than one of your sources */
+  const tally = {};
+  for(const [id, refs] of Object.entries(refsOf))
+    refs.forEach(r => (tally[r] = tally[r] || []).push(id));
+  const sharedIds = Object.entries(tally).filter(([,ids]) => ids.length > 1)
+                          .sort((a,b) => b[1].length - a[1].length).slice(0,6);
+
+  /* 3. name them — one batched lookup, not one call each */
+  let shared = [];
+  if(sharedIds.length){
+    try{
+      const filter = sharedIds.map(([w]) => w).join("|");
+      const d = await getJSON(`${OPENALEX}/works?filter=openalex_id:${filter}&per-page=10&select=id,title,publication_year,cited_by_count,doi&mailto=${encodeURIComponent(CONTACT)}`);
+      const byId = {};
+      (d.results||[]).forEach(w => byId[String(w.id).split("/").pop()] = w);
+      shared = sharedIds.map(([w, ids]) => ({
+        id:w, inherits:ids,
+        title:(byId[w]||{}).title || "(title unavailable)",
+        year:(byId[w]||{}).publication_year || null,
+        cites:(byId[w]||{}).cited_by_count || 0,
+        doi:((byId[w]||{}).doi||"").replace(/^https?:\/\/doi\.org\//,"")
+      }));
+    }catch(e){
+      shared = sharedIds.map(([w,ids]) => ({ id:w, inherits:ids, title:"(could not be retrieved)", year:null, cites:0, doi:"" }));
+    }
+  }
+
+  /* 4. do any of your sources cite each other directly */
+  const direct = [];
+  for(const a of LIB)
+    for(const b of LIB){
+      if(a.id===b.id) continue;
+      const bKey = (refsOf[a.id]||[]);
+      if(b.openalexId && bKey.includes(b.openalexId)) direct.push([a.id,b.id]);
+    }
+
+  /* 5. how many independent origins are you really standing on */
+  const dependent = new Set();
+  shared.forEach(s => s.inherits.slice(1).forEach(id => dependent.add(id)));
+  const origins = Math.max(1, LIB.length - dependent.size);
+
+  agent("isnad","done",`${origins} independent origin${origins===1?"":"s"} of ${LIB.length}`);
+  log("Isnad",`traced ${LIB.length} sources to ${origins} independent origin(s)`, origins < LIB.length ? "block" : "");
+  return { origins, shared, direct, note:"" };
+}
+
 /* ============================================================
    AGENT — CHALLENGER : argues back.
    Its only job is to make the student less comfortable.
@@ -487,6 +566,8 @@ async function challenger(question){
   const funders={}; LIB.forEach(i=>(i.grants||[]).forEach(g=>{ if(g.funder) funders[g.funder]=(funders[g.funder]||0)+1; }));
   const sharedF=Object.entries(funders).filter(([,n])=>n>1);
   if(sharedF.length) shape.push(`${sharedF.length} funder(s) paid for more than one of your sources (${sharedF.map(f=>f[0]).join(", ")}) — they are not fully independent`);
+  if(window.__CHAIN && window.__CHAIN.origins < LIB.length)
+    shape.push(`your ${LIB.length} sources trace back to only ${window.__CHAIN.origins} independent origin(s) — what looks like agreement may be one study repeated`);
   if(LIB.length<3) shape.push(`you are building on only ${LIB.length} source${LIB.length===1?"":"s"}`);
   out.push({ h:"The shape of your evidence",
     p: shape.length?shape.join(". ")+"." : "No structural problem found: your sources are recent, independent and varied.",
@@ -595,6 +676,101 @@ function renderFunding(blocks){
     box.appendChild(c);
   });
 }
+
+/* ---------- chain of transmission, rendered ---------- */
+function renderChain(c){
+  const box=$("#chain"); box.innerHTML="";
+  const independent = c.origins, total = LIB.length;
+
+  const head=el("div","card"+(independent<total?" bad":" ok"));
+  const t=el("div","c-top");
+  t.appendChild(el("div","c-title", independent<total
+    ? `Your ${total} sources rest on ${independent} independent origin${independent===1?"":"s"}`
+    : `All ${total} sources appear to be independent`));
+  t.appendChild(el("span","verdict "+(independent<total?"bad":"ok"), independent<total?"Not independent":"Independent"));
+  head.appendChild(t);
+  head.appendChild(el("div","note"+(independent<total?" bad":""), independent<total
+    ? "What looks like agreement between sources may be one piece of evidence repeated. A marker who follows your citations will find this."
+    : "No shared ancestor was found among the works your sources cite."));
+  if(c.note) head.appendChild(el("div","note",esc(c.note)));
+  box.appendChild(head);
+
+  c.shared.forEach((sh,i)=>{
+    const d=el("div","card warn"); d.style.animationDelay=(i*0.09)+"s";
+    const tt=el("div","c-top");
+    tt.appendChild(el("div","c-title",esc(sh.title)));
+    tt.appendChild(el("span","verdict warn",`${sh.inherits.length} of your sources`));
+    d.appendChild(tt);
+    d.appendChild(el("div","c-meta",
+      `${sh.year||"n.d."} · cited ${sh.cites} times overall${sh.doi?` · <code>${esc(sh.doi)}</code>`:""}`));
+    const ch=el("div","checks");
+    sh.inherits.forEach((id,k)=>{
+      const sp=el("span","check fail",`<span class="mk">↳</span>${esc(id)} inherits from this`);
+      sp.style.animationDelay=(k*0.07)+"s"; ch.appendChild(sp);
+    });
+    d.appendChild(ch);
+    box.appendChild(d);
+  });
+
+  if(c.direct.length){
+    const d=el("div","card info");
+    d.appendChild(el("div","c-title","Your sources cite each other"));
+    d.appendChild(el("div","note info", c.direct.map(p=>`${p[0]} cites ${p[1]}`).join(" · ")+
+      ". Sources that cite each other are not separate confirmations."));
+    box.appendChild(d);
+  }
+}
+
+/* ---------- the verification receipt ----------
+   A standalone file a marker can open and re-run. This is what makes
+   the work auditable by somebody who was not in the room. */
+function buildReceipt(draft){
+  const when=new Date();
+  const rows=LIB.map(i=>`
+    <tr><td>${esc(i.id)}</td><td>${esc(i.title)}</td><td>${esc(String(i.year||"n.d."))}</td>
+    <td><a href="https://doi.org/${esc(i.doi)}">${esc(i.doi)}</a></td>
+    <td>${esc(i.how)}</td></tr>`).join("");
+  const claims=(draft&&draft.claims||[]).map(c=>`
+    <tr><td>${esc(c.src||"—")}</td><td>${esc(c.text)}</td><td><b>${esc(c.label)}</b></td>
+    <td>${c.accepted?esc(c.accepted):""}</td></tr>`).join("");
+  const logRows=LOG.map(e=>`<tr><td>${e.t.toTimeString().slice(0,8)}</td><td>${esc(e.who)}</td><td>${esc(e.what)}</td></tr>`).join("");
+  const chain = window.__CHAIN ? `<p><b>Chain of transmission:</b> ${LIB.length} sources trace to
+     ${window.__CHAIN.origins} independent origin(s).${window.__CHAIN.shared.length?" Shared ancestors: "+
+     window.__CHAIN.shared.map(s=>esc(s.title)+" ("+(s.year||"n.d.")+")").join("; ")+".":""}</p>` : "";
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sanad verification receipt</title>
+<style>body{font-family:"Times New Roman",Times,serif;max-width:860px;margin:40px auto;padding:0 24px;color:#121108;line-height:1.5}
+h1{font-size:28px;margin-bottom:4px}h2{font-size:19px;margin-top:30px;border-bottom:1px solid #ddd8ca;padding-bottom:5px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+th{text-align:left;border-bottom:1px solid #999;padding:6px 8px 6px 0;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:#555}
+td{border-bottom:1px solid #eee;padding:7px 8px 7px 0;vertical-align:top}
+.sub{color:#666;font-size:14px}.box{background:#f7f5ef;padding:14px 18px;margin:16px 0}</style></head><body>
+<h1>Verification receipt</h1>
+<p class="sub">Generated by Sanad on ${when.toLocaleString()} · AI Club Hackathon 2026</p>
+<div class="box"><b>How to re-run these checks yourself:</b> every DOI below resolves at
+<code>https://api.crossref.org/works/&lt;doi&gt;</code>, which is free and needs no account.
+Compare the title, authors and year there with what is cited in the work.</div>
+<h2>Sources used (${LIB.length})</h2>
+<table><tr><th>ID</th><th>Title</th><th>Year</th><th>DOI</th><th>How it entered the library</th></tr>${rows}</table>
+<h2>Claims and their labels</h2>
+<table><tr><th>Source</th><th>Claim</th><th>Label</th><th>Author's reason, where unverified</th></tr>${claims}</table>
+<h2>Independence</h2>${chain||"<p>Not checked.</p>"}
+<h2>Full activity log</h2>
+<table><tr><th>Time</th><th>Actor</th><th>Action</th></tr>${logRows}</table>
+<h2>Declaration</h2>
+<p>No reference in this work was generated by an AI system. Every citation was retrieved from a
+scholarly database and verified against it. The author is responsible for the final text.</p>
+</body></html>`;
+}
+function downloadReceipt(draft){
+  const blob=new Blob([buildReceipt(draft)],{type:"text/html"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`sanad-receipt-${new Date().toISOString().slice(0,10)}.html`;
+  a.click(); URL.revokeObjectURL(a.href);
+  log("You","downloaded the verification receipt");
+}
+
 function renderChallenge(items){
   const box=$("#challenge"); box.innerHTML="";
   items.forEach((it,i)=>{
@@ -794,11 +970,17 @@ $("#toChallenge").onclick=async()=>{
   unlock(3); goStage(3);
   renderFunding(await patron($("#q").value.trim()));
 };
-$("#toChallenge2").onclick=async()=>{
+$("#toChain").onclick=async()=>{
   unlock(4); goStage(4);
+  window.__CHAIN = await isnad();
+  renderChain(window.__CHAIN);
+};
+$("#toChallenge2").onclick=async()=>{
+  unlock(5); goStage(5);
   renderChallenge(await challenger($("#q").value.trim()));
 };
-$("#toExport").onclick=()=>{ unlock(5); goStage(5); renderExport(DRAFT||{claims:[]}); };
+$("#toExport").onclick=()=>{ unlock(6); goStage(6); renderExport(DRAFT||{claims:[]}); };
+$("#receiptBtn").onclick=()=>downloadReceipt(DRAFT||{claims:[]});
 $("#copyAll").onclick=()=>{
   navigator.clipboard.writeText($("#apaOut").textContent+"\n\n"+$("#aiOut").textContent);
   $("#copyNote").textContent="copied"; setTimeout(()=>$("#copyNote").textContent="",2200);

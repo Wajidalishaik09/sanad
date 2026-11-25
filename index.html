@@ -32,8 +32,9 @@
     <button class="stage" data-stage="1" disabled><span class="num">2</span>Sources</button>
     <button class="stage" data-stage="2" disabled><span class="num">3</span>Draft</button>
     <button class="stage" data-stage="3" disabled><span class="num">4</span>Funding</button>
-    <button class="stage" data-stage="4" disabled><span class="num">5</span>Challenge</button>
-    <button class="stage" data-stage="5" disabled><span class="num">6</span>Export</button>
+    <button class="stage" data-stage="4" disabled><span class="num">5</span>Chain</button>
+    <button class="stage" data-stage="5" disabled><span class="num">6</span>Challenge</button>
+    <button class="stage" data-stage="6" disabled><span class="num">7</span>Export</button>
     <div class="rail-right">
       <span class="pill-count" id="libPill">Library: 0</span>
       <button class="btn ghost small" id="stressBtn">Stress-test a reference list</button>
@@ -74,6 +75,11 @@
     <div class="arrow">→</div>
     <div class="agent" id="ag-patron">
       <div class="an">Patron</div><div class="ar">follows the money</div>
+      <div class="as">idle</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="agent" id="ag-isnad">
+      <div class="an">Isnad</div><div class="ar">traces the chain</div>
       <div class="as">idle</div>
     </div>
     <div class="arrow">→</div>
@@ -148,7 +154,7 @@
       <p class="stand">Every claim is drawn from the abstract of a source you approved, and carries
       the library ID it came from. The Auditor has labelled each one.</p>
       <div class="draft" id="draft"></div>
-      <div class="row"><button class="btn" id="toChallenge">Send to the Challenger</button></div>
+      <div class="row"><button class="btn" id="toChallenge">Follow the money</button></div>
     </div>
     <aside>
       <div class="box">
@@ -171,11 +177,22 @@
   <p class="stand">Who paid for the research you are about to lean on. Funding is a credibility signal,
   not a footnote — and the same records show you where the money is for your own work.</p>
   <div id="funding"></div>
+  <div class="row"><button class="btn" id="toChain">Trace the chain of transmission</button></div>
+</section>
+
+<!-- ============ STAGE 4 — CHAIN ============ -->
+<section class="stage-panel" id="s4">
+  <h2 class="head">Chain of transmission</h2>
+  <p class="stand">Checking that each source is real is not the same as checking that your sources are
+  independent of each other. Five papers agreeing look like consensus — unless four of them inherit the
+  claim from the same older study. Isnad walks the citations backwards and shows you what you are
+  actually standing on.</p>
+  <div id="chain"></div>
   <div class="row"><button class="btn" id="toChallenge2">Send to the Challenger</button></div>
 </section>
 
-<!-- ============ STAGE 4 — CHALLENGE ============ -->
-<section class="stage-panel" id="s4">
+<!-- ============ STAGE 5 — CHALLENGE ============ -->
+<section class="stage-panel" id="s5">
   <h2 class="head">What the Challenger says</h2>
   <p class="stand">Its job is to make you less comfortable: what contradicts this, where the evidence
   is thinner than the sentence implies, and what the shape of your sources hides.</p>
@@ -183,8 +200,8 @@
   <div class="row"><button class="btn" id="toExport">Go to export</button></div>
 </section>
 
-<!-- ============ STAGE 5 — EXPORT ============ -->
-<section class="stage-panel" id="s5">
+<!-- ============ STAGE 6 — EXPORT ============ -->
+<section class="stage-panel" id="s6">
   <div class="split">
     <div>
       <h2 class="head">Export</h2>
@@ -195,7 +212,7 @@
       <pre class="export" id="apaOut"></pre>
       <h3 class="sub">Statement of AI use</h3>
       <pre class="export" id="aiOut"></pre>
-      <div class="row"><button class="btn" id="copyAll">Copy both</button><span class="hint" id="copyNote"></span></div>
+      <div class="row"><button class="btn" id="copyAll">Copy both</button><button class="btn ghost" id="receiptBtn">Download verification receipt</button><span class="hint" id="copyNote"></span></div>
     </div>
     <aside><div class="box"><h4>Full activity log</h4><div id="logFull"></div></div></aside>
   </div>
