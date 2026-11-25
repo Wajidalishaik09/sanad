@@ -7,6 +7,12 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="demoBar" role="status" hidden>
+  <b id="demoDate"></b>
+  <span>1 Approve both sources · 2 Write: Check this · 3 Export: locked · 4 Stress test</span>
+  <button class="btn small" id="demoRun">Run the demo script</button>
+  <button class="btn small" id="demoOff">Back to live</button>
+</div>
 
 <header class="masthead">
   <div class="mast-in">
@@ -40,6 +46,7 @@
       <span class="pill-count" id="refusedPill" title="AI output refused for breaking the citation rules">Refused: 0</span>
       <button class="btn ghost small" id="stressBtn">Stress test</button>
       <button class="btn ghost small" id="extrasBtn">Extras</button>
+      <button class="btn ghost small" id="demoOn">Demo mode</button>
     </div>
   </div>
 </nav>
@@ -153,6 +160,10 @@
   <h2 class="head">Write</h2>
   <p class="stand">Your own words. Type <b>@</b> to cite a source you approved. Sanad fills in the author and year
   from the record. It checks your text when you ask and never rewrites it.</p>
+  <div class="row" style="margin:0 0 14px"><button class="btn" id="checkWriting" disabled>Check this</button>
+    <button class="btn ghost" id="writeExport">Go to export</button>
+    <button class="btn ghost" id="askScribe" disabled>Ask Scribe for a separate draft</button>
+    <span class="hint" id="writeCount"></span></div>
   <div class="write-grid">
     <div id="writeWrap">
       <div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Your draft" spellcheck="true"></div>
@@ -160,10 +171,6 @@
     </div>
     <div id="margin" aria-live="polite" aria-label="Trust badges"></div>
   </div>
-  <div class="row"><button class="btn" id="checkWriting" disabled>Check this</button>
-    <button class="btn ghost" id="writeExport">Go to export</button>
-    <button class="btn ghost" id="askScribe" disabled>Ask Scribe for a separate draft</button>
-    <span class="hint" id="writeCount"></span></div>
 </section>
 
 <!-- ============ STAGE 2 — DRAFT ============ -->
@@ -235,7 +242,8 @@
       <div class="box"><h4>Saved in this browser</h4>
         <div class="legend">Your work stays after a refresh, on this computer only.</div>
         <div class="row"><button class="btn small" id="libBack">Back to the flow</button>
-          <button class="btn ghost small" id="clearLib">Clear library</button></div></div>
+          <button class="btn ghost small" id="clearLib">Clear library</button>
+          <button class="btn ghost small" id="warmUp">Warm up demo papers</button></div><div class="legend" id="warmNote"></div></div>
     </aside>
   </div>
 </section>
@@ -297,6 +305,8 @@
 
 <footer>Sanad · references are checked against Crossref and OpenAlex · the student stays in charge of every final decision</footer>
 
+<script src="fixtures/data.js"></script>
+<script src="fixtures.js"></script>
 <script src="store.js"></script>
 <script src="app.js"></script>
 <script src="quotecheck.js"></script>

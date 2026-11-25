@@ -3,7 +3,7 @@
    Loaded before app.js. Its functions run later, once app.js has
    defined LIB, DRAFT and the rest.
    ============================================================ */
-const STORE_KEY="sanad.v1";
+const STORE_KEY=DEMO?"sanad.demo.v1":"sanad.v1";       // demo work never mixes with real work
 let FOLDERS=[], DISMISSED=[];            // folder names; duplicate pairs the student said are different
 let WRITING={segments:[],checked:[],accepted:{}};                      // see writing.js
 let storeReady=false, saveTimer=null;
