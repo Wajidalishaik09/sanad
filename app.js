@@ -441,16 +441,18 @@ async function scribe(question){
    ============================================================ */
 const flat = s => String(s||"").normalize("NFKC").toLowerCase().replace(/[“”„]/g,'"').replace(/[‘’]/g,"'")
   .replace(/[‐-―]/g,"-").replace(/\s+/g," ").trim();
-/* Is the quote really in the abstract? Short fragments prove nothing. */
-const quoteInAbstract = (quote,item) => flat(quote).split(" ").length>=6 && flat(item.abstract).includes(flat(quote));
+/* Counted, not just present: "It is not true that" hides behind a "no" already in the quote. */
+const NEGATION=/\b(?:no|not|never|none|neither|nor|without|cannot|false|untrue|wrong|incorrect|myth|den(?:y|ies|ied)|refut\w+|disprov\w+|debunk\w+)\b|n't\b/g;
+const negations = s => (flat(s).match(NEGATION)||[]).length;
 /* Does the claim stay inside its quote? A real sentence can still be attached to a
    claim it does not support, so compare numbers, negation, hedging and wording.
    This is a word check, not understanding: the quote is shown for the student to judge. */
 function claimWithinQuote(text,quote){
+  text=quoteWords(text).flat; quote=quoteWords(quote).flat;            // % = percent, and so on
   const numbers=s=>flat(s).match(/\d+(?:[.,]\d+)*/g)||[], q=numbers(quote);
   if(numbers(text).some(n=>!q.includes(n))) return false;
   const says=re=>re.test(flat(text))===re.test(flat(quote));
-  if(!says(/\b(no|not|never|none|neither|nor|without|cannot)\b|n't\b/)) return false;
+  if(negations(text)!==negations(quote)) return false;
   if(/\b(may|might|could|suggests?|possibly|potentially|appears?)\b/.test(flat(quote)) && !says(/\b(may|might|could|suggests?|possibly|potentially|appears?)\b/)) return false;
   const want=[...new Set(contentWords(text).map(stem))], have=new Set(contentWords(quote).map(stem));
   return want.length>0 && want.filter(w=>have.has(w)).length/want.length>=0.7;
@@ -897,7 +899,8 @@ function claimRow(c){
   const r=el("div","gate-row");
   r.appendChild(el("p",null,`${esc(c.text)} <b>[${esc(c.src)}] ${esc(c.label)}</b>`));
   if(c.why) r.appendChild(el("div","quote",esc(c.why)));
-  if(c.quote) r.appendChild(el("div","quote",`Words found in the abstract: “${esc(c.quote)}”`));
+  (c.quotes||[]).forEach(v=>r.insertAdjacentHTML("beforeend",quoteLine(v)));
+  if(c.quote&&!c.student) r.appendChild(el("div","quote",`Words found in the abstract: “${esc(c.quote)}”`));
   const inp=el("input"); inp.type="text"; inp.placeholder="Why are you keeping this? (at least 10 characters)";
   const keep=el("button","btn small","Keep with this reason"), cut=el("button","btn ghost small",c.student?"Go to your text":"Remove claim"), row=el("div","row");
   const redraw=()=>{ if(DRAFT) renderDraft(DRAFT); renderExport(); };
@@ -929,6 +932,11 @@ function studentStatement(){
   return [`· The author's own text: ${own.length} cited sentence(s). Sanad checked them and changed no words.`,
     copied?`  ${copied} of them are word for word the same as a claim drafted by Scribe.`:"  None of them is a copy of a claim drafted by Scribe."];
 }
+function quoteStatement(draft){
+  const all=draft.claims.flatMap(c=>c.quotes||[]);
+  return [all.length ? "· Quote Checker — looked for the author's quotations in abstracts and, where open access allowed, full text (no AI)." : "· Quote Checker — no checked quotations.",
+    ...all.map(v=>`  "${v.quote}" [${v.id}]: ${v.label}.${v.why?" "+v.why:""}`)];
+}
 function aiStatement(draft){
   const accepted=draft.claims.filter(c=>c.accepted);
   return [
@@ -944,11 +952,12 @@ function aiStatement(draft){
     "· Auditor — checked cited references against Crossref and OpenAlex (DOI, title, authors, year, retraction). Results are below.",
     LOG.some(e=>e.who==="Challenger") ? "· Challenger — searched for contradicting work and reviewed the composition of the source base." : "· Challenger — not used.",
     ...studentStatement(),
+    ...quoteStatement(draft),
     "",
     `Sources cited: ${citedSources(draft).length}, each opened and approved by the author before use.`,
     ...citedSources(draft).map(i=>`  ${i.id} audit result: ${i.audit||"not audited"}`),
     `Claims: ${draft.claims.length}. Verified: ${draft.claims.length-accepted.length}. Kept without verification: ${accepted.length}.`,
-    ...accepted.map(c=>`  "${c.text}" [${c.src}], ${c.label}. Author's reason: ${c.accepted}`),
+    ...accepted.map(c=>`  "${c.text}" [${c.src}], ${c.label}.${c.why?" "+c.why:""} Author's reason: ${c.accepted}`),
     `AI output refused by Sanad: ${REFUSED}.`,
     "",
     "No reference in this work was written by an AI system. Every citation was retrieved from a",
@@ -1173,5 +1182,6 @@ function boot(){
 loadState();
 libPill(); gateChip(1,"","you approve the sources"); gateChip(2,"","you clear every claim"); showRestored();
 log("Sanad","session started");
+restoreQuoteChecks();
 llmHealth().then(ok=>{ if(!ok) log("Sanad","no model key found — Scribe will extract from abstracts instead"); });
 }

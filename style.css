@@ -252,3 +252,11 @@ select{font-family:var(--font);font-size:15px;padding:7px 10px;border:1.5px soli
 @media(max-width:900px){.write-grid{grid-template-columns:1fr 190px;gap:12px;}#editor{padding:20px;}}
 .margin-badge.bad,.claim .tag.bad{color:var(--bad);background:var(--bad-bg);}
 .claim.bad{border-left-color:var(--bad);}
+
+/* ================= quote verdicts ================= */
+.qv{margin-top:6px;padding:5px 8px;border-left:3px solid;font-size:14px;background:var(--surface);color:var(--ink-2);overflow-wrap:anywhere;}
+.margin-badge .qv b{display:inline;font-size:14px;}
+.qv.ok b,.qv.ok{border-color:var(--ok);} .qv.ok b{color:var(--ok);}
+.qv.warn{border-color:var(--warn);} .qv.warn b{color:var(--warn);}
+.qv.bad{border-color:var(--bad);} .qv.bad b{color:var(--bad);}
+.qv.info{border-color:var(--info);} .qv.info b{color:var(--info);}
