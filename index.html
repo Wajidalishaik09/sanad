@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sanadevery claim, traced to its source</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="mast-in">
+    <div class="wordmark">Sanad</div>
+    <div class="rule-v"></div>
+    <div class="tag">every claim, traced to its source</div>
+    <div class="mast-right">AI CLUB HACKATHON 2026 · TEAM 2</div>
+  </div>
+</header>
+
+<section class="hero" id="hero">
+  <div class="hero-in">
+    <div class="kicker">Reference manager · AI research assistant</div>
+    <h1>The AI is never asked <em>for</em> a citation.</h1>
+    <p>So it cannot invent one. Sources are retrieved from Crossref and OpenAlex before the AI
+       speaks, every reference is checked field by field, and nothing is saved until you approve it.</p>
+  </div>
+</section>
+
+<nav class="rail">
+  <div class="rail-in">
+    <button class="stage" data-stage="0" aria-current="true"><span class="num">1</span>Ask</button>
+    <button class="stage" data-stage="1" disabled><span class="num">2</span>Sources</button>
+    <button class="stage" data-stage="2" disabled><span class="num">3</span>Draft</button>
+    <button class="stage" data-stage="3" disabled><span class="num">4</span>Funding</button>
+    <button class="stage" data-stage="4" disabled><span class="num">5</span>Challenge</button>
+    <button class="stage" data-stage="5" disabled><span class="num">6</span>Export</button>
+    <div class="rail-right">
+      <span class="pill-count" id="libPill">Library: 0</span>
+      <button class="btn ghost small" id="stressBtn">Stress-test a reference list</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ============ THE AGENT PIPELINE (always visible) ============ -->
+<div class="pipe">
+  <div class="pipe-head">
+    <h4>Agent pipeline</h4>
+    <span class="sm" id="pipeNote">waiting for a research question</span>
+  </div>
+  <div class="pipe-flow">
+    <div class="agent" id="ag-scout">
+      <div class="an">Scout</div><div class="ar">finds</div>
+      <div class="as">idle</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="gate-chip" id="gate1"><span><b>Gate 1</b>you approve the sources</span></div>
+    <div class="arrow">→</div>
+    <div class="agent" id="ag-librarian">
+      <div class="an">Librarian</div><div class="ar">organises</div>
+      <div class="as">idle</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="agent" id="ag-scribe">
+      <div class="an">Scribe</div><div class="ar">writes</div>
+      <div class="as">idle</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="agent" id="ag-auditor">
+      <div class="an">Auditor</div><div class="ar">checks</div>
+      <div class="as">idle</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="agent" id="ag-patron">
+      <div class="an">Patron</div><div class="ar">follows the money</div>
+      <div class="as">idle</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="agent" id="ag-challenger">
+      <div class="an">Challenger</div><div class="ar">argues back</div>
+      <div class="as">idle</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="gate-chip" id="gate2"><span><b>Gate 2</b>you clear every claim</span></div>
+  </div>
+  <div class="cannot">
+    <b>Scout cannot invent a paper</b> — it only retrieves. &nbsp;·&nbsp;
+    <b>Scribe cannot cite anything outside your library</b> — it may emit library IDs and nothing else. &nbsp;·&nbsp;
+    <b>No agent writes to your library</b> — only you do.
+  </div>
+</div>
+
+<!-- ============ STAGE 0 — ASK ============ -->
+<section class="stage-panel on" id="s0">
+  <div class="split">
+    <div>
+      <h2 class="head">What are you researching?</h2>
+      <p class="stand">Ask in plain words. Scout searches OpenAlex and Crossref directly and brings
+      back real records — it has no ability to generate one.</p>
+      <input type="text" id="q" class="ask-big"
+             placeholder="Do large language models fabricate academic citations?">
+      <div class="row">
+        <button class="btn" id="goBtn">Send Scout</button>
+        <button class="btn ghost" id="egBtn">Use an example question</button>
+        <span class="hint" id="askStatus"></span>
+      </div>
+    </div>
+    <aside>
+      <div class="box">
+        <h4>How this differs</h4>
+        <div class="legend">
+          <b>Zotero, Mendeley</b> are trustworthy because they are dumb — they record what you already chose.<br><br>
+          <b>SciSpace, ChatGPT</b> are useful because they reason, and untrustworthy for the same reason.<br><br>
+          <b>Sanad</b> retrieves first, so the reasoning never touches the citation.
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ STAGE 1 — SOURCES ============ -->
+<section class="stage-panel" id="s1">
+  <div class="split">
+    <div>
+      <h2 class="head">Sources Scout found</h2>
+      <p class="stand">Every one of these is a real record. Open what looks relevant and approve what
+      you want to keep — <strong>nothing goes further until you do</strong>. This is Gate 1.</p>
+      <div id="sourceList"></div>
+    </div>
+    <aside>
+      <div class="box">
+        <h4>Gate 1</h4>
+        <div class="legend" id="gate1Side">Approve at least two sources to let Scribe start.</div>
+        <div class="row"><button class="btn" id="toDraft" disabled>Hand over to Scribe</button></div>
+      </div>
+      <div class="box"><h4>Librarian</h4><div class="legend" id="libNotes">Approve some sources and the Librarian will organise them.</div></div>
+      <div class="box"><h4>Activity log</h4><div id="logMini"></div></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ STAGE 2 — DRAFT ============ -->
+<section class="stage-panel" id="s2">
+  <div class="split">
+    <div>
+      <h2 class="head">What Scribe wrote</h2>
+      <p class="stand">Every claim is drawn from the abstract of a source you approved, and carries
+      the library ID it came from. The Auditor has labelled each one.</p>
+      <div class="draft" id="draft"></div>
+      <div class="row"><button class="btn" id="toChallenge">Send to the Challenger</button></div>
+    </div>
+    <aside>
+      <div class="box">
+        <h4>Trust labels</h4>
+        <div class="legend">
+          <b>Verified</b> — the source text supports it.<br>
+          <b>Reported, not checked</b> — stated by the source, not independently confirmed.<br>
+          <b>AI reasoning</b> — the system's own inference. Your judgement needed.<br>
+          <b>Not found</b> — no reliable source. Never replaced with a guess.
+        </div>
+      </div>
+      <div class="box"><h4>Activity log</h4><div id="logMini2"></div></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ STAGE 3 — FUNDING ============ -->
+<section class="stage-panel" id="s3">
+  <h2 class="head">Follow the money</h2>
+  <p class="stand">Who paid for the research you are about to lean on. Funding is a credibility signal,
+  not a footnote — and the same records show you where the money is for your own work.</p>
+  <div id="funding"></div>
+  <div class="row"><button class="btn" id="toChallenge2">Send to the Challenger</button></div>
+</section>
+
+<!-- ============ STAGE 4 — CHALLENGE ============ -->
+<section class="stage-panel" id="s4">
+  <h2 class="head">What the Challenger says</h2>
+  <p class="stand">Its job is to make you less comfortable: what contradicts this, where the evidence
+  is thinner than the sentence implies, and what the shape of your sources hides.</p>
+  <div id="challenge"></div>
+  <div class="row"><button class="btn" id="toExport">Go to export</button></div>
+</section>
+
+<!-- ============ STAGE 5 — EXPORT ============ -->
+<section class="stage-panel" id="s5">
+  <div class="split">
+    <div>
+      <h2 class="head">Export</h2>
+      <p class="stand">Gate 2. The reference list and the AI-use statement unlock once every claim is
+      either verified or accepted by you in writing.</p>
+      <div id="gateBox"></div>
+      <h3 class="sub">APA 7 reference list</h3>
+      <pre class="export" id="apaOut"></pre>
+      <h3 class="sub">Statement of AI use</h3>
+      <pre class="export" id="aiOut"></pre>
+      <div class="row"><button class="btn" id="copyAll">Copy both</button><span class="hint" id="copyNote"></span></div>
+    </div>
+    <aside><div class="box"><h4>Full activity log</h4><div id="logFull"></div></div></aside>
+  </div>
+</section>
+
+<!-- ============ STRESS TEST ============ -->
+<section class="stage-panel" id="sx">
+  <div class="split">
+    <div>
+      <h2 class="head">Try to break it</h2>
+      <p class="stand">Paste any reference list — from ChatGPT, from a draft, from a paper you are
+      reviewing. One per line. Each is checked field by field against Crossref and OpenAlex.</p>
+      <textarea id="refInput" rows="7" placeholder="Paste references here, one per line"></textarea>
+      <div class="row">
+        <button class="btn" id="checkBtn">Check these references</button>
+        <button class="btn ghost" id="demoBtn">Load demo set</button>
+        <button class="btn ghost" id="backBtn">Back to the flow</button>
+        <span class="hint" id="status"></span>
+      </div>
+      <div id="results" style="margin-top:28px"></div>
+    </div>
+    <aside>
+      <div class="box">
+        <h4>This session</h4>
+        <div class="stat"><span>Checked</span><span class="n" id="cTotal">0</span></div>
+        <div class="stat"><span>Verified</span><span class="n ok" id="cOk">0</span></div>
+        <div class="stat"><span>Problems</span><span class="n bad" id="cBad">0</span></div>
+        <div class="enforced">Free-text references produced by AI<br><b>0</b> &nbsp;(enforced, not measured)</div>
+      </div>
+      <div class="box">
+        <h4>What gets checked</h4>
+        <div class="legend">
+          <b>DOI resolves</b> — at Crossref, then OpenAlex.<br>
+          <b>Title matches</b> — catches a real DOI on the wrong paper.<br>
+          <b>Authors match</b> — surnames, tolerant of initials.<br>
+          <b>Year matches</b> — ±1 for preprint versions.<br>
+          <b>Not retracted</b> — Crossref carries Retraction Watch.
+        </div>
+      </div>
+      <div class="box">
+        <h4>Honest by design</h4>
+        <div class="legend">A network failure is never reported as a fabricated reference. If we
+        cannot check something, we say so.</div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+</main>
+
+<footer>Sanad · verification runs against Crossref, which needs no API key · the student stays in charge of every final decision</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
