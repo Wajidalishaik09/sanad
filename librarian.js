@@ -84,13 +84,16 @@ function mergeInto(keep,gone){
   keep.mergedFrom.push(gone.doi,...gone.mergedFrom);
   LIB=LIB.filter(i=>i!==gone);
   claimsOf(gone.id).forEach(c=>{ c.src=keep.id; c.accepted=""; c.label=judgeClaim(c,keep); });
+  moveCitations(gone.id,keep.id);
   afterSourceLeft(); log("You",`merged ${gone.id} into ${keep.id}`);
 }
 const claimsOf=id=>(DRAFT?DRAFT.claims:[]).filter(c=>c.src===id);
 function removeSource(item){
   const cited=claimsOf(item.id);
   const also=cited.length?` ${cited.length} claim(s) in your draft cite it and will be removed too.`:"";
-  if(!confirm(`Remove ${item.id} and its notes from the library?${also}`)) return false;
+  const own=studentClaims().filter(c=>c.srcs.includes(item.id)).length;
+  const text=own?` ${own} sentence(s) you wrote cite it; they will show Not found until you change them.`:"";
+  if(!confirm(`Remove ${item.id} and its notes from the library?${also}${text}`)) return false;
   LIB=LIB.filter(i=>i!==item);
   if(DRAFT) DRAFT.claims=DRAFT.claims.filter(c=>!cited.includes(c));
   afterSourceLeft(); log("You",`removed ${item.id} from the library`);
@@ -99,9 +102,10 @@ function removeSource(item){
 function afterSourceLeft(){
   if(VIEW.tag&&!LIB.some(i=>i.tags.includes(VIEW.tag))) VIEW.tag="";
   libPill(); refreshGate1();
+  redrawWriting();
   if(!DRAFT) return;
   window.__DRAFT_TEXT=DRAFT.claims.map(c=>`${c.text} [${c.src}] (${c.label})`).join("\n");
-  renderDraft(DRAFT); renderExport(DRAFT);
+  renderDraft(DRAFT); renderExport();
 }
 
 /* ---------- the agent's report when the student hands over to Scribe ---------- */
