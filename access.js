@@ -49,6 +49,7 @@ async function askAccess(doi){
   let a;
   try{ a=readAccess(await getJSON(accessUrl(doi))); }
   catch(e){ a={result:"cannot_check",why:e.notInDemo?NOT_IN_DEMO:"no answer"}; }
+  if(!DEMO||isAnswer(a)) log("Access",`looked for an open copy of ${doi}: ${a.result}`);
   if(a.result==="cannot_check") cache.delete(accessUrl(doi));       // a failure is never remembered as an answer
   return a;
 }

@@ -21,6 +21,15 @@ quotes, Challenger argues back, Access finds a legal open copy. **Access is agen
 only (from Unpaywall) and never changes a verdict, a trust label or a gate.** If Unpaywall gives no
 answer it says "Could not check right now", never "no open copy".
 
+## Check a reference
+
+Press **Check a reference**, type or paste one per line. A reference with no matching record is red, "Could not
+be verified". If Crossref or OpenAlex could not be reached it is amber, "Not yet verified", never "Verified".
+
+## Export
+
+The APA 7 list (copy or .txt) and a short AI use statement built from the activity log are always available.
+
 ## Files
 
 | File | Contains |
@@ -31,6 +40,7 @@ answer it says "Could not check right now", never "no open copy".
 | `writing.js` | Writing surface and @ citations |
 | `quotecheck.js` | Quote Checker |
 | `access.js` | Access: links to open copies |
+| `export.js` | APA 7 list, AI use statement, copy and download |
 | `fixtures.js`, `fixtures/` | Demo mode and recorded data |
 | `api/`, `lib/` | Server routes; the only place keys are used |
 | `scripts/capture-fixtures.js` | Records the demo data |

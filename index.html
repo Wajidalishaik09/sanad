@@ -10,7 +10,7 @@
 <body>
 <div id="demoBar" role="status" hidden>
   <b id="demoDate"></b>
-  <span>1 Approve both sources · 2 Write: Check this · 3 Export: locked · 4 Stress test</span>
+  <span>1 Approve both sources · 2 Write: Check this · 3 Export: locked · 4 Check a reference</span>
   <button class="btn small" id="demoRun">Run the demo script</button>
   <button class="btn small" id="demoOff">Back to live</button>
 </div>
@@ -40,12 +40,12 @@
     <button class="stage" data-stage="2" disabled><span class="num">3</span>Write</button>
     <button class="stage" data-stage="3" disabled><span class="num">4</span>Scribe</button>
     <button class="stage" data-stage="4" disabled><span class="num">5</span>Challenge</button>
-    <button class="stage" data-stage="5" disabled><span class="num">6</span>Export</button>
+    <button class="stage" data-stage="5"><span class="num">6</span>Export</button>
     <div class="rail-right">
       <button class="btn ghost small" id="libPill">Library: 0</button>
       <span class="pill-count hot" id="saveWarn" hidden>Not saved</span>
       <span class="pill-count" id="refusedPill" title="AI output refused for breaking the citation rules">Refused: 0</span>
-      <button class="btn ghost small" id="stressBtn">Stress test</button>
+      <button class="btn ghost small" id="stressBtn">Check a reference</button>
       <button class="btn ghost small" id="extrasBtn">Extras</button>
       <button class="btn ghost small" id="demoOn">Demo mode</button>
     </div>
@@ -118,6 +118,7 @@
              placeholder="Do large language models fabricate academic citations?">
       <div class="row">
         <button class="btn" id="goBtn">Send Scout</button>
+        <button class="btn ghost" id="checkRefBtn">Check a reference</button>
         <button class="btn ghost" id="egBtn">Use an example question</button>
         <span class="hint" id="askStatus"></span>
       </div>
@@ -213,18 +214,23 @@
   <div class="split">
     <div>
       <h2 class="head">Export</h2>
-      <p class="stand">Gate 2. The reference list and the AI-use statement unlock once every claim is
-      either verified or accepted by you in writing.</p>
+      <p class="stand">The reference list and the short AI use statement are ready at any time. Your text and the full
+      statement unlock at Gate 2, once every claim is verified or kept by you in writing.</p>
+      <h3 class="sub">APA 7 reference list</h3>
+      <p class="hint" id="apaNote"></p>
+      <pre class="export" id="apaOut"></pre>
+      <div class="row"><button class="btn" id="copyApa">Copy APA 7 list</button><button class="btn ghost" id="downloadApa">Download .txt</button><span class="hint" id="apaCopied" role="status"></span></div>
+      <h3 class="sub">AI use statement</h3>
+      <pre class="export" id="shortOut"></pre>
+      <div class="row"><button class="btn" id="copyShort">Copy statement</button><span class="hint" id="shortCopied" role="status"></span></div>
       <div id="gateBox"></div>
       <h3 class="sub">Your text</h3>
       <pre class="export" id="textOut"></pre>
-      <h3 class="sub">APA 7 reference list</h3>
-      <pre class="export" id="apaOut"></pre>
-      <h3 class="sub">Statement of AI use</h3>
+      <h3 class="sub">Full statement of AI use</h3>
       <pre class="export" id="aiOut"></pre>
       <div class="row"><button class="btn" id="copyAll">Copy all</button><button class="btn ghost" id="receiptBtn">Download verification receipt</button><span class="hint" id="copyNote"></span></div>
     </div>
-    <aside><div class="box"><h4>Full activity log</h4><div id="logFull"></div></div></aside>
+    <aside><div class="box"><details><summary>Full log</summary><div id="logFull"></div></details></div></aside>
   </div>
 </section>
 
@@ -259,17 +265,17 @@
   <div id="funding" style="margin-top:24px"></div><div id="chain"></div>
 </section>
 
-<!-- ============ STRESS TEST ============ -->
+<!-- ============ CHECK A REFERENCE ============ -->
 <section class="stage-panel" id="sx">
   <div class="split">
     <div>
-      <h2 class="head">Try to break it</h2>
+      <h2 class="head">Check a reference</h2>
       <p class="stand">Paste any reference list — from ChatGPT, from a draft, from a paper you are
       reviewing. One per line. Each is checked field by field against Crossref and OpenAlex.</p>
-      <textarea id="refInput" rows="7" placeholder="Paste references here, one per line"></textarea>
+      <textarea id="refInput" rows="7" placeholder="Type or paste a reference, one per line"></textarea>
       <div class="row">
-        <button class="btn" id="checkBtn">Check these references</button>
-        <button class="btn ghost" id="demoBtn">Load demo set</button>
+        <button class="btn" id="checkBtn">Check a reference</button>
+        <button class="btn ghost" id="demoBtn">Load example references</button>
         <button class="btn ghost" id="backBtn">Back to the flow</button>
         <span class="hint" id="status"></span>
       </div>
@@ -314,6 +320,7 @@
 <script src="access.js"></script>
 <script src="librarian.js"></script>
 <script src="writing.js"></script>
+<script src="export.js"></script>
 <script>boot();</script>
 </body>
 </html>
