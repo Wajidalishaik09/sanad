@@ -75,7 +75,9 @@ function sentenceSpans(flatStr){
   const re=/[.!?]+["”’)]*(?=\s|￼|$)|\n/g; let m;
   while((m=re.exec(flatStr))){
     let end=m.index+m[0].length; const s=flatStr.slice(start,end);
-    if(m[0]!=="\n"&&(openQuote(s)||ABBREV.test(s))) continue;
+    if(openQuote(s)&&!/\n\s*\n/.test(s)&&m[0]!=="\n") continue;
+    if(m[0]==="\n"&&openQuote(s)&&/^[^\n]/.test(flatStr.slice(end))) continue;          // a quote pasted with line breaks
+    if(m[0]!=="\n"&&ABBREV.test(s)) continue;
     const trailing=flatStr.slice(end).match(/^[ ]*￼(?:[ ]*￼)*[.]?(?=\s*(?:\n|$|\p{Lu}))/u);
     if(trailing&&m[0]!=="\n"){ end+=trailing[0].length; re.lastIndex=end; }
     out.push([start,end]); start=end;
@@ -101,34 +103,36 @@ const REPORTED="Reported (not checked)";
 const typedReference=s=>writesReference(s.text.replace(QUOTED," "))||RAW_REF.test(s.text);
 const fromScribe=s=>(DRAFT?DRAFT.claims:[]).find(c=>flat(c.text)===flat(s.text));
 function judgeSentence(s){
-  const items=s.srcs.map(sourceById), say=(label,why)=>({label,why});
+  const items=s.srcs.map(sourceById), say=(label,why,quotes=[])=>({label,why,quotes});
   if(items.some(i=>!i)) return say("Not found","A cited source is no longer in your library.");
   if(typedReference(s)) return say("Not found","A reference was typed by hand. Use @ to attach a source from your library.");
   const ai=fromScribe(s);
   if(ai&&(ai.label==="AI reasoning"||ai.label==="Not found")) return say(ai.label,"These words are Scribe's, with the label they had there.");
   if(!WRITING.checked.includes(s.key)) return say(REPORTED,"Not checked yet.");
-  const bad=items.find(i=>i.audit!=="Verified");
-  return judgeQuotes(s,items,bad,say);
+  return judgeQuotes(s,items,say);
 }
-function judgeQuotes(s,items,bad,say){
+/* Verified: every quote found word for word, every cited source proven and audited,
+   and the sentence says no more than its quotes. */
+function judgeQuotes(s,items,say){
   const quotes=quotesIn(s.text);
   if(!quotes.length) return say(REPORTED,"No quoted words to look for, so the claim itself was not checked.");
-  const short=quotes.find(q=>flat(q).split(" ").length<6);
-  if(short) return say(REPORTED,"Cannot check: a quotation needs at least six words to prove anything.");
-  const missing=quotes.find(q=>!items.some(i=>quoteInAbstract(q,i)));
-  if(missing&&items.some(i=>!i.abstract)) return say(REPORTED,"Cannot check: no abstract is available for a cited source.");
-  if(missing) return say("Not found",`These words are not in the cited abstract: “${missing.slice(0,80)}”. They may be in the full text, which was not checked.`);
-  if(bad) return say(REPORTED,`The words are there, but the audit of ${bad.id} says: ${bad.audit||"not audited"}.`);
-  const empty=items.find(i=>!quotes.some(q=>quoteInAbstract(q,i)));
-  if(empty) return say(REPORTED,`No quoted words come from ${empty.id}, so that citation is not proven.`);
-  if(!claimWithinQuote(s.text,quotes.join(" "))) return say(REPORTED,"The quotation is real, but the sentence says more than the quotation does.");
-  return say("Verified","The exact words are in the abstract and the reference passed audit.");
+  const vs=quotes.map(q=>({...bestVerdict(q,items),quote:q}));
+  const no=why=>say(REPORTED,why,vs);
+  if(vs.some(v=>v.name==="notFound")) return say("Not found","",vs);
+  if(vs.some(v=>!v.found)) return no("");
+  if(quotes.some(q=>wordCount(q)<MIN_QUOTE)) return no(`A quotation under ${MIN_QUOTE} words proves too little.`);
+  const bad=items.find(i=>i.audit!=="Verified");
+  if(bad) return no(`The words are there, but the audit of ${bad.id} says: ${bad.audit||"not audited"}.`);
+  const empty=items.find(i=>!quotes.some(q=>checkQuote(q,i).found));
+  if(empty) return no(`No quoted words come from ${empty.id}, so that citation is not proven.`);
+  if(!claimWithinQuote(s.text,quotes.join(" "))) return no("The quotation is real, but the sentence says more than the quotation does.");
+  return say("Verified","The exact words are in the source and the reference passed audit.",vs);
 }
 /* The sentences that count as claims: cited ones, and any with a typed reference. */
 function studentClaims(){
   return readSentences().filter(s=>s.srcs.length||typedReference(s)).map(s=>{
     const j=judgeSentence(s);
-    return {...s, student:true, src:s.srcs.join(", ")||"no source", label:j.label, why:j.why, accepted:WRITING.accepted[s.key]||"",
+    return {...s, student:true, src:s.srcs.join(", ")||"no source", label:j.label, why:j.why, quotes:j.quotes, accepted:WRITING.accepted[s.key]||"",
             quote:j.label==="Verified"?quotesIn(s.text).join(" … "):"" };
   });
 }
@@ -139,6 +143,7 @@ async function checkWriting(){
   btn.disabled=true; agent("auditor","run","checking your sentences"); pipeNote("Auditor is checking your text. It changes nothing.");
   for(const id of new Set(claims.flatMap(c=>c.srcs))){ const i=sourceById(id); if(i) await auditSource(i); }
   WRITING.checked=[...new Set([...WRITING.checked,...claims.map(c=>c.key)])];      // only the words that were there when pressed
+  await quoteChecker(studentClaims());
   const now=studentClaims(), v=now.filter(c=>c.label==="Verified").length;
   agent("auditor","done",`${v} of ${now.length} sentences verified`);
   log("Auditor",`checked ${claims.length} of the student's sentences; ${v} verified; no words changed`);
@@ -173,7 +178,7 @@ function drawBadges(){
   const base=editor.getBoundingClientRect().top; let floor=0;
   const claims=studentClaims();
   claims.forEach(c=>{
-    const k=kindOf(c.label), b=el("div","margin-badge "+k,`<b>${esc(c.label)}</b><span>${esc(c.srcs.join(", "))} ${esc(c.why)}${c.accepted?" You kept it because: "+esc(c.accepted):""}</span>`);
+    const k=kindOf(c.label), b=el("div","margin-badge "+k,`<b>${esc(c.label)}</b><span>${esc(c.srcs.join(", "))} ${esc(c.why)}${c.accepted?" You kept it because: "+esc(c.accepted):""}</span>${c.quotes.map(quoteLine).join("")}`);
     box.appendChild(b);
     const top=Math.max(topOf(c)-base,floor); b.style.top=top+"px"; floor=top+b.offsetHeight+8;
   });
