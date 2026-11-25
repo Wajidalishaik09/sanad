@@ -31,13 +31,13 @@
     <button class="stage" data-stage="0" aria-current="true"><span class="num">1</span>Ask</button>
     <button class="stage" data-stage="1" disabled><span class="num">2</span>Sources</button>
     <button class="stage" data-stage="2" disabled><span class="num">3</span>Draft</button>
-    <button class="stage" data-stage="3" disabled><span class="num">4</span>Funding</button>
-    <button class="stage" data-stage="4" disabled><span class="num">5</span>Chain</button>
-    <button class="stage" data-stage="5" disabled><span class="num">6</span>Challenge</button>
-    <button class="stage" data-stage="6" disabled><span class="num">7</span>Export</button>
+    <button class="stage" data-stage="3" disabled><span class="num">4</span>Challenge</button>
+    <button class="stage" data-stage="4" disabled><span class="num">5</span>Export</button>
     <div class="rail-right">
       <span class="pill-count" id="libPill">Library: 0</span>
-      <button class="btn ghost small" id="stressBtn">Stress-test a reference list</button>
+      <span class="pill-count" id="refusedPill" title="AI output refused for breaking the citation rules">Refused: 0</span>
+      <button class="btn ghost small" id="stressBtn">Stress test</button>
+      <button class="btn ghost small" id="extrasBtn">Extras</button>
     </div>
   </div>
 </nav>
@@ -73,19 +73,19 @@
       <div class="as">idle</div>
     </div>
     <div class="arrow">→</div>
-    <div class="agent" id="ag-patron">
-      <div class="an">Patron</div><div class="ar">follows the money</div>
-      <div class="as">idle</div>
-    </div>
-    <div class="arrow">→</div>
-    <div class="agent" id="ag-isnad">
-      <div class="an">Isnad</div><div class="ar">traces the chain</div>
-      <div class="as">idle</div>
+    <div class="agent todo" id="ag-quote">
+      <div class="an">Quote Checker</div><div class="ar">checks quotes</div>
+      <div class="as">not built yet</div>
     </div>
     <div class="arrow">→</div>
     <div class="agent" id="ag-challenger">
       <div class="an">Challenger</div><div class="ar">argues back</div>
       <div class="as">idle</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="agent todo" id="ag-access">
+      <div class="an">Access</div><div class="ar">traces to the source</div>
+      <div class="as">not built yet</div>
     </div>
     <div class="arrow">→</div>
     <div class="gate-chip" id="gate2"><span><b>Gate 2</b>you clear every claim</span></div>
@@ -102,7 +102,7 @@
   <div class="split">
     <div>
       <h2 class="head">What are you researching?</h2>
-      <p class="stand">Ask in plain words. Scout searches OpenAlex and Crossref directly and brings
+      <p class="stand">Ask in plain words. Scout searches OpenAlex and brings
       back real records — it has no ability to generate one.</p>
       <input type="text" id="q" class="ask-big"
              placeholder="Do large language models fabricate academic citations?">
@@ -154,14 +154,14 @@
       <p class="stand">Every claim is drawn from the abstract of a source you approved, and carries
       the library ID it came from. The Auditor has labelled each one.</p>
       <div class="draft" id="draft"></div>
-      <div class="row"><button class="btn" id="toChallenge">Follow the money</button></div>
+      <div class="row"><button class="btn" id="toChallenge">Send to the Challenger</button></div>
     </div>
     <aside>
       <div class="box">
         <h4>Trust labels</h4>
         <div class="legend">
-          <b>Verified</b> — the source text supports it.<br>
-          <b>Reported, not checked</b> — stated by the source, not independently confirmed.<br>
+          <b>Verified</b> — its supporting sentence is in the abstract, the claim stays within it, and the reference passed audit.<br>
+          <b>Reported (not checked)</b> — stated by the source, not independently confirmed.<br>
           <b>AI reasoning</b> — the system's own inference. Your judgement needed.<br>
           <b>Not found</b> — no reliable source. Never replaced with a guess.
         </div>
@@ -171,28 +171,8 @@
   </div>
 </section>
 
-<!-- ============ STAGE 3 — FUNDING ============ -->
+<!-- ============ STAGE 3 — CHALLENGE ============ -->
 <section class="stage-panel" id="s3">
-  <h2 class="head">Follow the money</h2>
-  <p class="stand">Who paid for the research you are about to lean on. Funding is a credibility signal,
-  not a footnote — and the same records show you where the money is for your own work.</p>
-  <div id="funding"></div>
-  <div class="row"><button class="btn" id="toChain">Trace the chain of transmission</button></div>
-</section>
-
-<!-- ============ STAGE 4 — CHAIN ============ -->
-<section class="stage-panel" id="s4">
-  <h2 class="head">Chain of transmission</h2>
-  <p class="stand">Checking that each source is real is not the same as checking that your sources are
-  independent of each other. Five papers agreeing look like consensus — unless four of them inherit the
-  claim from the same older study. Isnad walks the citations backwards and shows you what you are
-  actually standing on.</p>
-  <div id="chain"></div>
-  <div class="row"><button class="btn" id="toChallenge2">Send to the Challenger</button></div>
-</section>
-
-<!-- ============ STAGE 5 — CHALLENGE ============ -->
-<section class="stage-panel" id="s5">
   <h2 class="head">What the Challenger says</h2>
   <p class="stand">Its job is to make you less comfortable: what contradicts this, where the evidence
   is thinner than the sentence implies, and what the shape of your sources hides.</p>
@@ -200,8 +180,8 @@
   <div class="row"><button class="btn" id="toExport">Go to export</button></div>
 </section>
 
-<!-- ============ STAGE 6 — EXPORT ============ -->
-<section class="stage-panel" id="s6">
+<!-- ============ STAGE 4 — EXPORT ============ -->
+<section class="stage-panel" id="s4">
   <div class="split">
     <div>
       <h2 class="head">Export</h2>
@@ -216,6 +196,16 @@
     </div>
     <aside><div class="box"><h4>Full activity log</h4><div id="logFull"></div></div></aside>
   </div>
+</section>
+
+<!-- ============ EXTRAS ============ -->
+<section class="stage-panel" id="sextra">
+  <h2 class="head">Extras</h2>
+  <p class="stand">Two experiments outside the main flow. Approve some sources first.</p>
+  <div class="row"><button class="btn ghost" id="patronBtn">Patron: who funded these sources</button>
+    <button class="btn ghost" id="isnadBtn">Isnad: do these sources share an origin</button>
+    <button class="btn ghost" id="extrasBack">Back to the flow</button></div>
+  <div id="funding" style="margin-top:24px"></div><div id="chain"></div>
 </section>
 
 <!-- ============ STRESS TEST ============ -->
@@ -263,7 +253,7 @@
 
 </main>
 
-<footer>Sanad · verification runs against Crossref, which needs no API key · the student stays in charge of every final decision</footer>
+<footer>Sanad · references are checked against Crossref and OpenAlex · the student stays in charge of every final decision</footer>
 
 <script src="app.js"></script>
 </body>
