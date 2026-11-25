@@ -5,10 +5,11 @@
    ============================================================ */
 const STORE_KEY="sanad.v1";
 let FOLDERS=[], DISMISSED=[];            // folder names; duplicate pairs the student said are different
+let WRITING={segments:[],checked:[],accepted:{}};                      // see writing.js
 let storeReady=false, saveTimer=null;
 
 function snapshot(){
-  return { lib:LIB, nextId:NEXT_ID, folders:FOLDERS, dismissed:DISMISSED, draft:DRAFT,
+  return { lib:LIB, nextId:NEXT_ID, folders:FOLDERS, dismissed:DISMISSED, draft:DRAFT, writing:WRITING,
            refused:REFUSED, log:LOG, question:$("#q").value, unlocked };
 }
 function saveState(){
@@ -47,9 +48,17 @@ function loadState(){
     list(s.log).forEach(e=>{ const t=new Date(e.t); if(!isNaN(t)) LOG.push({t,who:text(e.who),what:text(e.what),kind:text(e.kind)}); });
     $("#q").value=text(s.question);
     DRAFT=loadDraft(s.draft);
-    unlocked=DRAFT?Math.min(4,Math.max(2,Number(s.unlocked)||2)):Math.min(1,LIB.length);
+    WRITING=loadWriting(s.writing);
+    unlocked=Math.min(5,Math.max(Number(s.unlocked)||0,DRAFT?3:0));
+    if(!LIB.length&&!WRITING.segments.length) unlocked=0;
   }
   storeReady=true;
+}
+/* Only plain text and library IDs are restored. No label is stored, so none can be forged. */
+function loadWriting(w){
+  const segs=list(w&&w.segments).map(s=>s&&typeof s.t==="string"?{t:s.t}:s&&/^L\d+$/.test(s.src)?{src:s.src}:null).filter(Boolean);
+  const accepted={}; Object.entries((w&&w.accepted)||{}).forEach(([k,v])=>{ if(text(v).trim().length>=10) accepted[k]=v; });
+  return {segments:segs, checked:list(w&&w.checked).map(String), accepted};
 }
 /* A restored claim must still cite a source in the library, and earns its label again. */
 function loadDraft(d){
@@ -59,18 +68,18 @@ function loadDraft(d){
   return {claims,blocked:Number(d.blocked)||0,usedModel:!!d.usedModel};
 }
 function showRestored(){
-  unlock(unlocked); refreshGate1(); drawRefused(); drawLog();
+  unlock(unlocked); refreshGate1(); drawRefused(); drawLog(); redrawWriting();
   if(!DRAFT) return;
-  renderDraft(DRAFT); renderExport(DRAFT);
+  renderDraft(DRAFT);
   window.__DRAFT_TEXT=DRAFT.claims.map(c=>`${c.text} [${c.src}] (${c.label})`).join("\n");
   $("#challenge").innerHTML=`<div class="empty">Objections are not kept after a refresh. Go back to Draft and send it to the Challenger again.</div>`;
 }
 /* Sources, folders, tags, notes and the draft go. The activity log stays: it is the record of AI use. */
 function clearLibrary(){
-  if(!confirm(`Clear ${LIB.length} source(s), all folders, tags, notes and the draft? This cannot be undone.`)) return false;
+  if(!confirm(`Clear ${LIB.length} source(s), all folders, tags, notes, the draft and your own text? This cannot be undone.`)) return false;
   const n=LIB.length;
-  LIB=[]; FOLDERS=[]; DISMISSED=[]; DRAFT=null; unlocked=0;
-  ["#draft","#challenge","#gateBox","#apaOut","#aiOut","#sourceList"].forEach(id=>$(id).innerHTML="");
+  LIB=[]; FOLDERS=[]; DISMISSED=[]; DRAFT=null; unlocked=0; resetWriting();
+  ["#draft","#challenge","#gateBox","#apaOut","#aiOut","#textOut","#sourceList"].forEach(id=>$(id).innerHTML="");
   libPill(); refreshGate1(); gateChip(2,"","you clear every claim");
   log("You",`cleared the library (${n} sources)`);
   goStage(0);

@@ -227,6 +227,8 @@ function goStage(i){
     b.classList.toggle("done", n<i);
     b.disabled = n>unlocked;
   });
+  if(i===2) redrawWriting();
+  if(i===5) renderExport();
   $("#hero").style.display = i===0 ? "" : "none";
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -250,14 +252,16 @@ function addToLibrary(rec,how){
   log("You",`approved ${item.id} into the library — ${item.title.slice(0,60)}`);
   return item;
 }
-function apa(it){
+function apa(it,suffix=""){
   const names=(it.authors||[]).filter(Boolean).map(n=>{
-    const p=String(n).trim().split(/\s+/), fam=p.pop();
-    return fam+(p.length?", "+p.map(x=>x[0]+".").join(" "):"");
+    const fam=displayFamily(n), given=String(n).trim().slice(0,String(n).trim().lastIndexOf(fam)).trim();
+    return fam+(given?", "+given.split(/\s+/).map(x=>x[0]+".").join(" "):"");
   });
-  let auth=names.length?names.join(", "):"[author unknown]";
-  if(names.length>1) auth=names.slice(0,-1).join(", ")+", & "+names[names.length-1];
-  return `${auth} (${it.year||"n.d."}). ${it.title}. ${it.venue?it.venue+". ":""}https://doi.org/${it.doi}`;
+  let auth=names.join(", ");
+  if(names.length>20) auth=names.slice(0,19).join(", ")+", . . . "+names[names.length-1];
+  else if(names.length>1) auth=names.slice(0,-1).join(", ")+", & "+names[names.length-1];
+  const year=it.year?it.year+suffix:"n.d."+(suffix?"-"+suffix:""), tail=`${it.venue?it.venue+". ":""}https://doi.org/${it.doi}`;
+  return auth ? `${auth} (${year}). ${it.title}. ${tail}` : `${it.title}. (${year}). ${tail}`;
 }
 
 /* ============================================================
@@ -457,14 +461,15 @@ function judgeClaim(c,item){
   if(c.label!=="Verified") return c.label;                          // we may lower a label, never raise it
   return c.quoteFound&&item.audit==="Verified"&&claimWithinQuote(c.text,c.quote) ? "Verified" : "Reported (not checked)";
 }
+async function auditSource(item){
+  try{ item.audit=(await verifyLine(apa(item))).badge; }catch(e){ item.audit="Cannot check"; }
+}
 async function auditor(draft){
   agent("auditor","run","verifying every reference");
   pipeNote("Auditor is checking each reference and each claim");
   /* 1. every cited source goes through the same checks as a pasted reference */
   const cited=LIB.filter(i=>draft.claims.some(c=>c.src===i.id));
-  for(const item of cited){
-    try{ item.audit=(await verifyLine(apa(item))).badge; }catch(e){ item.audit="Cannot check"; }
-  }
+  for(const item of cited) await auditSource(item);
   /* 2. the model may not mark its own work: we decide the label */
   let lowered=0;
   for(const c of draft.claims){
@@ -729,13 +734,13 @@ function sourceCard(w,how="searched and approved"){
 }
 function refreshGate1(){
   const n=LIB.length, ready=n>=2;
-  $("#toDraft").disabled=!ready;
+  $("#toDraft").disabled=$("#askScribe").disabled=!ready; $("#toWrite").disabled=!n;
   $("#gate1Side").innerHTML = ready
     ? `<b>${n} sources approved.</b> Scribe may now write, and may cite nothing outside them.`
-    : `Approve at least two sources to let Scribe start. Approved so far: <b>${n}</b>.`;
+    : `Approve one source to start writing, or two to ask Scribe for a draft. Approved so far: <b>${n}</b>.`;
   gateChip(1, ready?"open":"locked", ready?`${n} sources approved`:"you approve the sources");
 }
-const kindOf = label => label==="Verified"?"ok":label==="AI reasoning"?"info":"warn";
+const kindOf = label => ({"Verified":"ok","AI reasoning":"info","Not found":"bad"})[label]||"warn";
 function renderDraft(draft){
   saveState();
   const box=$("#draft"); box.innerHTML="";
@@ -878,38 +883,51 @@ function renderChallenge(items){
 /* Gate 2: every claim is verified, accepted with its own reason, or removed. */
 const unresolved = draft => draft.claims.filter(c=>c.label!=="Verified"&&!c.accepted);
 const gate2Open  = draft => draft.claims.length>0 && !unresolved(draft).length;
-const citedSources = draft => LIB.filter(i=>draft.claims.some(c=>c.src===i.id));
+/* What is exported: Scribe's remaining claims and the student's own cited sentences. */
+const exportDraft  = () => ({ claims:[...(DRAFT?DRAFT.claims:[]),...studentClaims()], blocked:DRAFT?DRAFT.blocked:0 });
+const citedSources = draft => LIB.filter(i=>draft.claims.some(c=>(c.srcs||[c.src]).includes(i.id)));
 function acceptClaim(draft,c,reason){
   if(reason.trim().length<10) return false;
-  c.accepted=reason.trim();                                          // the label stays: accepted is not verified
+  c.accepted=reason.trim();
+  if(c.student) WRITING.accepted[c.key]=c.accepted;                                          // the label stays: accepted is not verified
   log("You",`kept a claim labelled ${c.label} [${c.src}]: "${c.accepted}"`);
   return true;
 }
-function claimRow(draft,c){
+function claimRow(c){
   const r=el("div","gate-row");
   r.appendChild(el("p",null,`${esc(c.text)} <b>[${esc(c.src)}] ${esc(c.label)}</b>`));
+  if(c.why) r.appendChild(el("div","quote",esc(c.why)));
   if(c.quote) r.appendChild(el("div","quote",`Words found in the abstract: “${esc(c.quote)}”`));
   const inp=el("input"); inp.type="text"; inp.placeholder="Why are you keeping this? (at least 10 characters)";
-  const keep=el("button","btn small","Keep with this reason"), cut=el("button","btn ghost small","Remove claim"), row=el("div","row");
-  const redraw=()=>{ renderDraft(draft); renderExport(draft); };
-  keep.onclick=()=>{ if(acceptClaim(draft,c,inp.value)) redraw(); else inp.focus(); };
-  cut.onclick=()=>{ draft.claims.splice(draft.claims.indexOf(c),1); log("You",`removed a claim [${c.src}]`); redraw(); };
+  const keep=el("button","btn small","Keep with this reason"), cut=el("button","btn ghost small",c.student?"Go to your text":"Remove claim"), row=el("div","row");
+  const redraw=()=>{ if(DRAFT) renderDraft(DRAFT); renderExport(); };
+  keep.onclick=()=>{ if(acceptClaim(null,c,inp.value)) redraw(); else inp.focus(); };
+  cut.onclick=()=>{ if(c.student) return openWriting();              // the student edits their own words
+    DRAFT.claims.splice(DRAFT.claims.indexOf(c),1); log("You",`removed a claim [${c.src}]`); redraw(); };
   row.append(keep,cut); r.append(inp,row);
   return r;
 }
-function renderExport(draft){
-  const left=unresolved(draft), box=$("#gateBox"), open=gate2Open(draft); box.innerHTML="";
+function renderExport(){
+  const draft=exportDraft(), left=unresolved(draft), box=$("#gateBox"), open=gate2Open(draft); box.innerHTML="";
   const g=el("div","gate "+(open?"open":"locked"));
   g.appendChild(el("h4",null,open?"Gate 2: open":"Gate 2: locked"));
   g.appendChild(el("p",null, open ? "Every claim is verified or was kept by you in writing. You are accountable for the result."
-    : left.length ? `${left.length} claim(s) not verified. Give a reason for each one you keep, or remove it.` : "There is no draft to export."));
-  left.forEach(c=>g.appendChild(claimRow(draft,c)));
+    : left.length ? `${left.length} claim(s) not verified. Give a reason for each one you keep, or remove it.` : "There is no cited claim to export yet."));
+  left.forEach(c=>g.appendChild(claimRow(c)));
+  if(DRAFT&&DRAFT.claims.length&&studentClaims().length) g.appendChild(button("Leave Scribe's draft out of the export",()=>{ DRAFT.claims=[]; log("You","left Scribe's draft out of the export"); renderDraft(DRAFT); renderExport(); }));
   box.appendChild(g);
   gateChip(2,open?"open":"locked",open?"you cleared every claim":"you clear every claim");
-  $("#apaOut").textContent = open ? citedSources(draft).map(apa).sort().join("\n\n") : "Locked until Gate 2 is cleared.";
+  $("#apaOut").textContent = open ? citedSources(draft).map(i=>apa(i,yearSuffix(i))).sort((a,b)=>a.localeCompare(b)).join("\n\n") : "Locked until Gate 2 is cleared.";
+  $("#textOut").textContent = !open ? "Locked until Gate 2 is cleared." : WRITING.segments.map(s=>s.src?inText(s.src):s.t).join("").trim() || "You have not written any text.";
   $("#aiOut").textContent  = open ? aiStatement(draft) : "Locked until Gate 2 is cleared.";
   saveState();
   $("#copyAll").disabled = $("#receiptBtn").disabled = !open;
+}
+function studentStatement(){
+  const own=studentClaims(); if(!own.length) return [];
+  const copied=own.filter(fromScribe).length;
+  return [`· The author's own text: ${own.length} cited sentence(s). Sanad checked them and changed no words.`,
+    copied?`  ${copied} of them are word for word the same as a claim drafted by Scribe.`:"  None of them is a copy of a claim drafted by Scribe."];
 }
 function aiStatement(draft){
   const accepted=draft.claims.filter(c=>c.accepted);
@@ -920,11 +938,12 @@ function aiStatement(draft){
     "",
     "How AI was used:",
     "· Scout — searched OpenAlex for sources. It retrieves records only and cannot generate a reference.",
-    "· Scribe — drafted claims from the abstracts of sources the author had approved. It was constrained",
-    "  to cite sources by library identifier, so it could not produce a free-text reference.",
+    ...(LOG.some(e=>e.who==="Scribe") ? ["· Scribe — drafted claims from the abstracts of sources the author had approved. It was constrained",
+    "  to cite sources by library identifier, so it could not produce a free-text reference."] : ["· Scribe — not used."]),
     "· Librarian — flagged duplicates and gaps in the library.",
-    "· Auditor — checked every cited reference against Crossref and OpenAlex (DOI, title, authors, year, retraction).",
-    "· Challenger — searched for contradicting work and reviewed the composition of the source base.",
+    "· Auditor — checked cited references against Crossref and OpenAlex (DOI, title, authors, year, retraction). Results are below.",
+    LOG.some(e=>e.who==="Challenger") ? "· Challenger — searched for contradicting work and reviewed the composition of the source base." : "· Challenger — not used.",
+    ...studentStatement(),
     "",
     `Sources cited: ${citedSources(draft).length}, each opened and approved by the author before use.`,
     ...citedSources(draft).map(i=>`  ${i.id} audit result: ${i.audit||"not audited"}`),
@@ -1093,7 +1112,7 @@ $("#goBtn").onclick=async()=>{
 $("#toDraft").onclick=async()=>{
   const notes=await librarian();
   const nb=$("#libNotes"); if(nb) nb.innerHTML = notes.length ? notes.map(n=>"· "+esc(n)).join("<br>") : "Nothing to tidy — your library is clean.";
-  unlock(2); goStage(2);
+  unlock(3); goStage(3);
   $("#draft").innerHTML='<span class="spin"></span> Scribe is writing from your approved sources';
   DRAFT=await scribe($("#q").value.trim());
   DRAFT=await auditor(DRAFT);
@@ -1101,10 +1120,10 @@ $("#toDraft").onclick=async()=>{
   renderDraft(DRAFT);
 };
 $("#toChallenge").onclick=async()=>{
-  unlock(3); goStage(3);
+  unlock(4); goStage(4);
   renderChallenge(await challenger($("#q").value.trim()));
 };
-$("#toExport").onclick=()=>{ unlock(4); goStage(4); renderExport(DRAFT||{claims:[]}); };
+$("#toExport").onclick=()=>{ unlock(5); goStage(5); renderExport(); };
 
 /* Extras: kept out of the main flow. */
 $("#extrasBtn").onclick=()=>showPanel("#sextra");
@@ -1112,9 +1131,9 @@ $("#patronBtn").onclick=async()=>renderFunding(await patron($("#q").value.trim()
 $("#isnadBtn").onclick=async()=>{ window.__CHAIN=await isnad(); renderChain(window.__CHAIN); };
 $("#extrasBack").onclick=()=>goStage(unlocked);
 
-$("#receiptBtn").onclick=()=>downloadReceipt(DRAFT||{claims:[]});
+$("#receiptBtn").onclick=()=>downloadReceipt(exportDraft());
 $("#copyAll").onclick=()=>{
-  navigator.clipboard.writeText($("#apaOut").textContent+"\n\n"+$("#aiOut").textContent);
+  navigator.clipboard.writeText($("#textOut").textContent+"\n\n"+$("#apaOut").textContent+"\n\n"+$("#aiOut").textContent);
   $("#copyNote").textContent="copied"; setTimeout(()=>$("#copyNote").textContent="",2200);
 };
 
@@ -1149,7 +1168,10 @@ $("#checkBtn").onclick=async()=>{
   $("#status").textContent=""; $("#checkBtn").disabled=false;
 };
 
+/* Called from index.html once every script has loaded. */
+function boot(){
 loadState();
 libPill(); gateChip(1,"","you approve the sources"); gateChip(2,"","you clear every claim"); showRestored();
 log("Sanad","session started");
 llmHealth().then(ok=>{ if(!ok) log("Sanad","no model key found — Scribe will extract from abstracts instead"); });
+}
