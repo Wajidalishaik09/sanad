@@ -175,6 +175,9 @@ async function findByTitle(title,surnames=[]){
 const LOG=[];
 function log(who,what,kind){
   LOG.push({ t:new Date(), who, what, kind: kind||(who==="You"?"human":"") });
+  saveState(); drawLog();
+}
+function drawLog(){
   ["#logMini","#logMini2","#logFull"].forEach(sel=>{
     const box=$(sel); if(!box) return; box.innerHTML="";
     LOG.slice(-(sel==="#logFull"?99:6)).forEach(e=>{
@@ -192,9 +195,10 @@ const RAW_REF     = /10\.\d{4,9}\/\S+|doi\.org\/|\bdoi:\s*\S/i;
 const AUTHOR_YEAR = /\bet al\b|\(\p{Lu}[\p{L}'’\-]+(?:\s*(?:&|and|,)\s*\p{Lu}[\p{L}'’\-]+)*,?\s+(?:1[5-9]|20)\d{2}[a-z]?\)|\p{Lu}[\p{L}'’\-]+\s+\((?:1[5-9]|20)\d{2}\)/u;
 const writesReference = prose => RAW_REF.test(prose) || AUTHOR_YEAR.test(prose);
 let REFUSED=0;
+function drawRefused(){ $("#refusedPill").textContent=`Refused: ${REFUSED}`; $("#refusedPill").classList.toggle("hot",REFUSED>0); }
 function refuse(who,n,why){
   if(!n) return;
-  REFUSED+=n; $("#refusedPill").textContent=`Refused: ${REFUSED}`; $("#refusedPill").classList.add("hot");
+  REFUSED+=n; drawRefused();
   log("Sanad",`REFUSED ${n} item(s) from ${who}: ${why}`,"block");
 }
 
@@ -226,20 +230,21 @@ function goStage(i){
   $("#hero").style.display = i===0 ? "" : "none";
   window.scrollTo({top:0,behavior:"smooth"});
 }
-function unlock(i){ unlocked=Math.max(unlocked,i); $$(".stage").forEach(b=>{ if(+b.dataset.stage<=unlocked) b.disabled=false; }); }
+function unlock(i){ saveStateSoon(); unlocked=Math.max(unlocked,i); $$(".stage").forEach(b=>{ if(+b.dataset.stage<=unlocked) b.disabled=false; }); }
 $$(".stage").forEach(b=>b.onclick=()=>goStage(+b.dataset.stage));
 
 /* ===================== library ===================== */
-let LIB=[];
+let DRAFT=null, LIB=[], NEXT_ID=1;                                   // ids are never reused: an old claim must not point at a new paper
 const libPill = () => $("#libPill").textContent = `Library: ${LIB.length}`;
+const inLibrary = doi => LIB.find(x=>x.doi===doi||(x.mergedFrom||[]).includes(doi));
 function addToLibrary(rec,how){
   if(!rec.opened){ log("Sanad","Gate 1 stopped a source: its abstract was not opened","block"); return null; }
-  if(LIB.some(x=>x.doi===rec.doi)) return null;
-  const item={ id:"L"+(LIB.length+1), doi:rec.doi, title:rec.title, year:rec.year, venue:rec.venue||"",
+  if(inLibrary(rec.doi)) return null;
+  const item={ id:"L"+(NEXT_ID++), opened:true, doi:rec.doi, title:rec.title, year:rec.year, venue:rec.venue||"",
     abstract:rec.abstract||"", how, retraction:rec.retraction||null,
     authors:(rec.authors||[]).map(a=>a.display_name||[a.given,a.family].filter(Boolean).join(" ")),
     country:rec.country||"", type:rec.type||"",
-    grants:rec.grants||[], topics:rec.topics||[], isOA:!!rec.isOA, tags:[],
+    grants:rec.grants||[], topics:rec.topics||[], isOA:rec.isOA??null, tags:[], note:"", folder:"", mergedFrom:[],
     openalexId:rec.openalexId||"" };
   LIB.push(item); libPill();
   log("You",`approved ${item.id} into the library — ${item.title.slice(0,60)}`);
@@ -474,47 +479,6 @@ async function auditor(draft){
   return draft;
 }
 
-
-/* ============================================================
-   AGENT — LIBRARIAN : organises.
-   The reference-manager half. Works on metadata already fetched,
-   so it costs nothing and cannot invent anything.
-   ============================================================ */
-async function librarian(){
-  agent("librarian","run","organising your library");
-  pipeNote("Librarian is tidying the library");
-  await wait(420);
-  const notes=[];
-
-  /* 1. the same work twice: preprint and published version */
-  const dupes=[];
-  for(let i=0;i<LIB.length;i++)
-    for(let j=i+1;j<LIB.length;j++)
-      if(similarity(LIB[i].title,LIB[j].title)>=0.86) dupes.push([LIB[i],LIB[j]]);
-  dupes.forEach(([a,b])=>{
-    const pre = /preprint|arxiv|biorxiv|ssrn/i.test(a.venue+a.type) ? a : b;
-    const pub = pre===a ? b : a;
-    pre.duplicateOf=pub.id;
-    notes.push(`${pre.id} looks like the preprint of ${pub.id} — same work counted twice. Cite ${pub.id}.`);
-  });
-
-  /* 2. tags, from OpenAlex topic labels the record already carries */
-  const freq={};
-  LIB.forEach(i=>(i.topics||[]).forEach(t=>{ if(t) freq[t]=(freq[t]||0)+1; }));
-  const common=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  LIB.forEach(i=>{ i.tags=(i.topics||[]).filter(t=>freq[t]>1).slice(0,2); });
-  if(common.length) notes.push(`Your sources cluster around: ${common.map(c=>c[0]+" ("+c[1]+")").join(", ")}.`);
-
-  /* 3. what is missing */
-  const noAbs=LIB.filter(i=>!i.abstract).length;
-  if(noAbs) notes.push(`${noAbs} source(s) have no abstract available, so nothing can be quoted from them.`);
-  const closed=LIB.filter(i=>!i.isOA).length;
-  if(closed) notes.push(`${closed} source(s) are not open access — you may not be able to read the full text.`);
-
-  agent("librarian","done",`${dupes.length} duplicate(s), ${Object.keys(freq).length} topics`);
-  log("Librarian",`organised ${LIB.length} sources; found ${dupes.length} duplicate(s)`);
-  return notes;
-}
 
 /* ============================================================
    AGENT — PATRON : follows the money.
@@ -753,7 +717,8 @@ function sourceCard(w,how="searched and approved"){
     : `No abstract is available, so nothing can be quoted from this source. <a href="https://doi.org/${esc(w.doi)}" target="_blank" rel="noopener">Open the record</a> before you decide.`;
   c.appendChild(abs);
   const row=el("div","row"), open=el("button","btn small","Open abstract"), ok=el("button","btn ghost small",w.retraction?"Approve as retracted":"Approve into library");
-  ok.disabled=true;
+  const had=inLibrary(w.doi); ok.disabled=true;
+  if(had){ ok.dataset.done=1; ok.textContent=`In your library as ${had.id}`; }
   open.onclick=()=>{ abs.hidden=!abs.hidden; open.textContent=abs.hidden?"Open abstract":"Close abstract";
     if(!w.opened){ w.opened=true; log("You",`opened the abstract of "${w.title.slice(0,50)}"`); }
     if(!ok.dataset.done) ok.disabled=false; };
@@ -772,6 +737,7 @@ function refreshGate1(){
 }
 const kindOf = label => label==="Verified"?"ok":label==="AI reasoning"?"info":"warn";
 function renderDraft(draft){
+  saveState();
   const box=$("#draft"); box.innerHTML="";
   box.appendChild(el("h5",null,"Draft: every claim carries the library ID it came from"));
   if(!draft.claims.length) box.appendChild(el("div","empty","Not found. Nothing in your sources survived the checks."));
@@ -942,6 +908,7 @@ function renderExport(draft){
   gateChip(2,open?"open":"locked",open?"you cleared every claim":"you clear every claim");
   $("#apaOut").textContent = open ? citedSources(draft).map(apa).sort().join("\n\n") : "Locked until Gate 2 is cleared.";
   $("#aiOut").textContent  = open ? aiStatement(draft) : "Locked until Gate 2 is cleared.";
+  saveState();
   $("#copyAll").disabled = $("#receiptBtn").disabled = !open;
 }
 function aiStatement(draft){
@@ -1104,7 +1071,6 @@ function renderResult(r){
 }
 
 /* ===================== wiring ===================== */
-let DRAFT=null;
 
 $("#egBtn").onclick=()=>$("#q").value="Do large language models fabricate academic citations?";
 $("#goBtn").onclick=async()=>{
@@ -1183,6 +1149,7 @@ $("#checkBtn").onclick=async()=>{
   $("#status").textContent=""; $("#checkBtn").disabled=false;
 };
 
-libPill(); gateChip(1,"","you approve the sources"); gateChip(2,"","you clear every claim");
-log("Sanad","session started — agents idle, none has run");
+loadState();
+libPill(); gateChip(1,"","you approve the sources"); gateChip(2,"","you clear every claim"); showRestored();
+log("Sanad","session started");
 llmHealth().then(ok=>{ if(!ok) log("Sanad","no model key found — Scribe will extract from abstracts instead"); });

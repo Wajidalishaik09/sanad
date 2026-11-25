@@ -34,7 +34,8 @@
     <button class="stage" data-stage="3" disabled><span class="num">4</span>Challenge</button>
     <button class="stage" data-stage="4" disabled><span class="num">5</span>Export</button>
     <div class="rail-right">
-      <span class="pill-count" id="libPill">Library: 0</span>
+      <button class="btn ghost small" id="libPill">Library: 0</button>
+      <span class="pill-count hot" id="saveWarn" hidden>Not saved</span>
       <span class="pill-count" id="refusedPill" title="AI output refused for breaking the citation rules">Refused: 0</span>
       <button class="btn ghost small" id="stressBtn">Stress test</button>
       <button class="btn ghost small" id="extrasBtn">Extras</button>
@@ -198,6 +199,26 @@
   </div>
 </section>
 
+<!-- ============ LIBRARY ============ -->
+<section class="stage-panel" id="slib">
+  <div class="split">
+    <div>
+      <h2 class="head" id="libTitle">Your library</h2>
+      <p class="stand">Folders, tags and notes are yours. The Librarian suggests; only you change anything.</p>
+      <div id="dupBox"></div>
+      <div id="libList"></div>
+    </div>
+    <aside>
+      <div class="box"><h4>Folders</h4><div id="folderBox"></div></div>
+      <div class="box"><h4>Filter by tag</h4><div id="tagBox"></div></div>
+      <div class="box"><h4>Saved in this browser</h4>
+        <div class="legend">Your work stays after a refresh, on this computer only.</div>
+        <div class="row"><button class="btn small" id="libBack">Back to the flow</button>
+          <button class="btn ghost small" id="clearLib">Clear library</button></div></div>
+    </aside>
+  </div>
+</section>
+
 <!-- ============ EXTRAS ============ -->
 <section class="stage-panel" id="sextra">
   <h2 class="head">Extras</h2>
@@ -255,6 +276,8 @@
 
 <footer>Sanad · references are checked against Crossref and OpenAlex · the student stays in charge of every final decision</footer>
 
+<script src="store.js"></script>
 <script src="app.js"></script>
+<script src="librarian.js"></script>
 </body>
 </html>
