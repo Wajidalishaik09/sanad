@@ -122,7 +122,7 @@ function judgeQuotes(s,items,say){
   if(vs.some(v=>!v.found)) return no("");
   if(quotes.some(q=>wordCount(q)<MIN_QUOTE)) return no(`A quotation under ${MIN_QUOTE} words proves too little.`);
   const bad=items.find(i=>i.audit!=="Verified");
-  if(bad) return no(`The words are there, but the audit of ${bad.id} says: ${bad.audit||"not audited"}.`);
+  if(bad) return no(`The words are there, but the audit of ${bad.id} says: ${auditWord(bad.audit)}.`);
   const empty=items.find(i=>!quotes.some(q=>checkQuote(q,i).found));
   if(empty) return no(`No quoted words come from ${empty.id}, so that citation is not proven.`);
   if(!claimWithinQuote(s.text,quotes.join(" "))) return no("The quotation is real, but the sentence says more than the quotation does.");

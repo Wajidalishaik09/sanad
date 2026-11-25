@@ -45,12 +45,20 @@ errors. Seven agents lay out correctly.
 All seven agents have been run against the live services and in demo mode with outside hosts blocked.
 The Vercel deployment has not been tested.
 
+**Check a reference.** Red "Could not be verified" means both databases answered. Amber "Not yet verified"
+means a check could not run. "Partly verified" needs a registered DOI, a close title and a shared author. A
+similar real paper is shown below the verdict, never as the verdict. Internal names (`Not found`, `Cannot check`,
+`Unconfirmed`) are used in code; `headline` is what is shown.
+
+**Export** (`export.js`). The APA 7 list and the short AI use statement are always available. Gate 2 still governs
+the student's text and the full statement. References that failed audit end with [NOT VERIFIED].
+
 ---
 
 ## Do these first, in this order
 
 1. `node server.js`, walk the full flow once end to end. Fix what breaks.
-2. Stress-test tab → Load demo set → Check. The third entry is a real DOI on the
+2. Check a reference → Load example references → Check a reference. The third entry is a real DOI on the
    wrong paper; confirm it goes red.
 3. Approve 4–5 sources and run the chain stage. If OpenAlex has no reference data
    for them, Isnad says so honestly rather than claiming independence.
