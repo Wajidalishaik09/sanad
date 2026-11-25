@@ -481,47 +481,6 @@ async function auditor(draft){
 
 
 /* ============================================================
-   AGENT — LIBRARIAN : organises.
-   The reference-manager half. Works on metadata already fetched,
-   so it costs nothing and cannot invent anything.
-   ============================================================ */
-async function librarian(){
-  agent("librarian","run","organising your library");
-  pipeNote("Librarian is tidying the library");
-  await wait(420);
-  const notes=[];
-
-  /* 1. the same work twice: preprint and published version */
-  const dupes=[];
-  for(let i=0;i<LIB.length;i++)
-    for(let j=i+1;j<LIB.length;j++)
-      if(similarity(LIB[i].title,LIB[j].title)>=0.86) dupes.push([LIB[i],LIB[j]]);
-  dupes.forEach(([a,b])=>{
-    const pre = /preprint|arxiv|biorxiv|ssrn/i.test(a.venue+a.type) ? a : b;
-    const pub = pre===a ? b : a;
-    pre.duplicateOf=pub.id;
-    notes.push(`${pre.id} looks like the preprint of ${pub.id} — same work counted twice. Cite ${pub.id}.`);
-  });
-
-  /* 2. tags, from OpenAlex topic labels the record already carries */
-  const freq={};
-  LIB.forEach(i=>(i.topics||[]).forEach(t=>{ if(t) freq[t]=(freq[t]||0)+1; }));
-  const common=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  LIB.forEach(i=>{ i.tags=(i.topics||[]).filter(t=>freq[t]>1).slice(0,2); });
-  if(common.length) notes.push(`Your sources cluster around: ${common.map(c=>c[0]+" ("+c[1]+")").join(", ")}.`);
-
-  /* 3. what is missing */
-  const noAbs=LIB.filter(i=>!i.abstract).length;
-  if(noAbs) notes.push(`${noAbs} source(s) have no abstract available, so nothing can be quoted from them.`);
-  const closed=LIB.filter(i=>!i.isOA).length;
-  if(closed) notes.push(`${closed} source(s) are not open access — you may not be able to read the full text.`);
-
-  agent("librarian","done",`${dupes.length} duplicate(s), ${Object.keys(freq).length} topics`);
-  log("Librarian",`organised ${LIB.length} sources; found ${dupes.length} duplicate(s)`);
-  return notes;
-}
-
-/* ============================================================
    AGENT — PATRON : follows the money.
    Funding is a credibility signal, not a footnote: who paid for the
    research you are leaning on, whether your sources share a funder,
