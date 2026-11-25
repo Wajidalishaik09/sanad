@@ -35,6 +35,7 @@
     <button class="stage" data-stage="4" disabled><span class="num">5</span>Export</button>
     <div class="rail-right">
       <span class="pill-count" id="libPill">Library: 0</span>
+      <span class="pill-count hot" id="saveWarn" hidden>Not saved</span>
       <span class="pill-count" id="refusedPill" title="AI output refused for breaking the citation rules">Refused: 0</span>
       <button class="btn ghost small" id="stressBtn">Stress test</button>
       <button class="btn ghost small" id="extrasBtn">Extras</button>
@@ -255,6 +256,7 @@
 
 <footer>Sanad · references are checked against Crossref and OpenAlex · the student stays in charge of every final decision</footer>
 
+<script src="store.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
