@@ -19,7 +19,7 @@ try {
 
 const PORT = Number(process.env.PORT || 8000);
 const API  = {};
-for (const name of ["llm", "health", "openalex", "crossref"]) API["/api/" + name] = require("./api/" + name);
+for (const name of ["llm", "health", "openalex", "crossref", "unpaywall"]) API["/api/" + name] = require("./api/" + name);
 const MIME = { ".html":"text/html", ".css":"text/css", ".js":"text/javascript",
                ".json":"application/json", ".svg":"image/svg+xml", ".png":"image/png" };
 

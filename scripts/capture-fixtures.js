@@ -1,5 +1,6 @@
 /* Records real API responses for demo mode. Run once:   node scripts/capture-fixtures.js
    Crossref and OpenAlex go through lib/scholar.js, so keys stay in .env.
+   Add --missing to keep what is recorded and fetch only new entries.
    Nothing is edited: each entry is the exact body that came back, with its time. */
 const fs = require("fs"), path = require("path");
 const root = path.join(__dirname, "..");
@@ -7,7 +8,7 @@ fs.readFileSync(path.join(root, ".env"), "utf8").split("\n").forEach(line => {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
   if (m) process.env[m[1]] = m[2];
 });
-const proxy = { openalex: require("../api/openalex"), crossref: require("../api/crossref") };
+const proxy = { openalex: require("../api/openalex"), crossref: require("../api/crossref"), unpaywall: require("../api/unpaywall") };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const EPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest";
 const NCBI = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&rettype=xml&id=";
@@ -36,6 +37,7 @@ const urls = [
   `https://doi.org/api/handles/${doiPath(FAKE_DOI)}`,
   ...PAPERS.map(p => `${EPMC}/search?query=${enc(`DOI:"${p.doi}"`)}&format=json&resultType=lite`),
   ...PAPERS.map(p => `${EPMC}/${p.pmcid}/fullTextXML`),
+  ...PAPERS.map(p => "/api/unpaywall?doi=" + enc(p.doi)),
 ];
 
 /* ---------- recording ---------- */
@@ -67,11 +69,13 @@ async function record(url) {
   throw new Error("no answer for " + url);
 }
 (async () => {
-  const entries = [];
-  for (const url of urls) { const e = await record(url); entries.push(e); console.log(e.status, String(e.body.length).padStart(7), decodeURIComponent(url).slice(0, 100)); await wait(1200); }
+  const file = path.join(root, "fixtures", "data.js");
+  const kept = process.argv.includes("--missing") ? new Function(fs.readFileSync(file, "utf8") + ";return FIXTURE_DATA")().entries : [];
+  const entries = [...kept], have = new Set(kept.map(e => e.url));
+  for (const url of urls.filter(u => !have.has(u))) { const e = await record(url); entries.push(e); console.log(e.status, String(e.body.length).padStart(7), decodeURIComponent(url).slice(0, 100)); await wait(1200); }
   const text = JSON.stringify({ capturedAt: entries[0].capturedAt, entries }, null, 1);
   for (const [k, v] of Object.entries(process.env))
     if (/(_KEY|_EMAIL)$/.test(k) && v.length > 6 && text.includes(v)) throw new Error("refusing to save: response contains " + k);
-  fs.writeFileSync(path.join(root, "fixtures", "data.js"), "/* Recorded by scripts/capture-fixtures.js. Real responses, unedited. */\nconst FIXTURE_DATA = " + text + ";\n");
+  fs.writeFileSync(file, "/* Recorded by scripts/capture-fixtures.js. Real responses, unedited. */\nconst FIXTURE_DATA = " + text + ";\n");
   console.log("saved", entries.length, "responses,", Math.round(text.length / 1024), "KB");
 })().catch(e => { console.error("STOPPED:", e.message); process.exit(1); });

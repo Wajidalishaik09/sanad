@@ -179,9 +179,11 @@ function drawBadges(){
   const claims=studentClaims();
   claims.forEach(c=>{
     const k=kindOf(c.label), b=el("div","margin-badge "+k,`<b>${esc(c.label)}</b><span>${esc(c.srcs.join(", "))} ${esc(c.why)}${c.accepted?" You kept it because: "+esc(c.accepted):""}</span>${c.quotes.map(quoteLine).join("")}`);
-    box.appendChild(b);
-    const top=Math.max(topOf(c)-base,floor); b.style.top=top+"px"; floor=top+b.offsetHeight+8;
+    b.appendChild(accessLinks(c.srcs)); box.appendChild(b);
+    b.dataset.want=topOf(c)-base;
   });
+  fillAccess();                                                // links first, so each badge has its final height
+  [...box.children].forEach(b=>{ const top=Math.max(+b.dataset.want,floor); b.style.top=top+"px"; floor=top+b.offsetHeight+8; });
   box.style.minHeight=floor+"px";
   const all=readSentences().length;
   $("#writeCount").textContent=all?`${all} sentence(s): ${claims.filter(c=>c.srcs.length).length} with a citation, ${claims.filter(c=>!c.srcs.length).length} with a typed reference.`:"";
