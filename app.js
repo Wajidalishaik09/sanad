@@ -386,7 +386,7 @@ async function scribe(question){
 
     const user = [
       `Research question: ${question}`, "", "Approved sources:",
-      ...LIB.map(i => `[${i.id}] ${i.title} (${i.year||"n.d."})\nAbstract: ${(i.abstract||"(no abstract available)").slice(0,1500)}`),
+      ...LIB.filter(i=>statusOf(i)!=="Retracted").map(i => `[${i.id}] ${i.title} (${i.year||"n.d."})\nAbstract: ${(i.abstract||"(no abstract available)").slice(0,1500)}`),
       "", "Write 4 to 6 claims that answer the question. Return JSON only."
     ].join("\n");
 
@@ -406,7 +406,7 @@ async function scribe(question){
   if(!claims){
     const qWords = norm(question).split(" ").filter(w=>w.length>3);
     claims = [];
-    for(const item of LIB){
+    for(const item of LIB.filter(i=>statusOf(i)!=="Retracted")){
       const sents = sentences(item.abstract);
       if(!sents.length){ claims.push({text:"No abstract text is available for this source, so nothing can be quoted from it.",src:item.id,label:"Not found"}); continue; }
       const best = sents.map(x=>({x,score:qWords.reduce((n,w)=>n+(norm(x).includes(w)?1:0),0)})).sort((a,b)=>b.score-a.score)[0];
@@ -984,6 +984,7 @@ function aiStatement(draft){
     `Claims: ${draft.claims.length}. Verified: ${draft.claims.length-accepted.length}. Kept without verification: ${accepted.length}.`,
     ...accepted.map(c=>`  "${c.text}" [${c.src}], ${c.label}.${c.why?" "+c.why:""} Author's reason: ${c.accepted}`),
     `AI output refused by Sanad: ${REFUSED}.`,
+    referenceWarnings(),
     "",
     "No reference in this work was written by an AI system. Every citation was retrieved from a",
     "scholarly database. The author is responsible for the final text.",
@@ -1180,12 +1181,12 @@ $("#goBtn").onclick=async()=>{
   log("You",`asked: "${q}"`);
   try{
     const rows=await scout(q);
-    renderSources(rows); refreshGate1();
+    await showAnswer(q,rows); refreshGate1();
     unlock(1); goStage(1);
   }catch(e){
     agent("scout","","cannot search");
     log("Scout",`search did not run (${e.message})`);
-    $("#sourceList").innerHTML=`<div class="card info"><div class="c-top"><div class="c-title">The search did not run</div><span class="verdict info">Cannot check</span></div>
+    $("#sourceList").innerHTML=`<div class="card info"><div class="c-top"><div class="c-title">The search did not run</div><span class="verdict warn">Could not check, try again</span></div>
       <div class="note info">${e.notInDemo?NOT_IN_DEMO+". The search was not run.":`OpenAlex gave no answer (${esc(e.message)}).`} That is not the same as finding nothing. Try again in a moment.</div></div>`;
     unlock(1); goStage(1);
   }
@@ -1239,6 +1240,8 @@ $("#checkBtn").onclick=async()=>{
   const results=[], cards=[];
   for(let i=0;i<lines.length;i++){
     $("#status").innerHTML=`<span class="spin"></span> checking ${i+1} of ${lines.length}`;
+    const asked=readQuoteRequest(lines[i]);
+    if(asked){ box.appendChild(await quoteCard(lines[i],asked)); continue; }
     let r; try{ r=await verifyLine(lines[i]); }
     catch(e){ const p=parseReference(lines[i]); r={line:lines[i],parsed:p,cited:{title:p.title},searched:[],fixes:[],checks:[ck("Network error","unknown")],badge:"Cannot check",klass:"warn",headline:"",
       note:"We could not reach the database. That is not evidence that the reference is fake."}; }

@@ -223,15 +223,16 @@ function drawMenu(){
   menuAt=at; menuPick=Math.min(menuPick,Math.max(0,found.length-1)); box.innerHTML=""; box.hidden=false;
   if(!found.length) box.appendChild(el("div","at-none",LIB.length?"Not found in your library. Only sources you approved can be cited.":"Your library is empty. Approve a source first."));
   found.forEach((i,n)=>{
-    const b=el("button","at-item"+(n===menuPick?" on":""),`<b>${esc(i.id)} ${esc(shortAuthors(i))}, ${esc(i.year||"n.d.")}</b><span>${esc(i.title)}</span>`);
+    const b=el("button","at-item"+(n===menuPick?" on":""),`<b>${esc(i.id)} ${esc(shortAuthors(i))}, ${esc(i.year||"n.d.")}</b> <em class="status ${STATUS[statusOf(i)]}">${esc(statusOf(i))}</em><span>${esc(i.title)}</span>${statusOf(i)==="Retracted"?'<span class="retracted-banner">RETRACTED: needs your confirmation</span>':""}`);
     b.onmousedown=e=>{ e.preventDefault(); insertCitation(i.id); }; box.appendChild(b);
   });
   const r=document.createRange(); r.setStart(at.node,at.from); r.setEnd(at.node,at.to);
   const c=r.getBoundingClientRect(), w=$("#writeWrap").getBoundingClientRect();
   box.style.top=(c.bottom-w.top+6)+"px"; box.style.left=Math.max(0,Math.min(c.left-w.left,w.width-380))+"px";
 }
-function insertCitation(id){
+function insertCitation(id,confirmed){
   if(!menuAt||!sourceById(id)?.opened) return;
+  if(!confirmed&&statusOf(sourceById(id))==="Retracted") return confirmRetracted(id,()=>insertCitation(id,true));
   const r=document.createRange(); r.setStart(menuAt.node,menuAt.from); r.setEnd(menuAt.node,menuAt.to); r.deleteContents();
   const tail=document.createTextNode(ZWSP), chip=makeChip(id); r.insertNode(tail); r.insertNode(chip);
   getSelection().collapse(tail,1); closeMenu();

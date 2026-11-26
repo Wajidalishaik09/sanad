@@ -79,6 +79,7 @@ function shortStatement(){
     jobs.length?`Automated steps without AI: ${jobs.join("; ")}.`:"",
     `The student approved ${LIB.length} source(s). Verified claims: ${ok} of ${claims.length}.`,
     `Citations the model attempted that Sanad refused: ${REFUSED}.`,
+    referenceWarnings(),
     DEMO?`Demo data recorded on ${recordedOn} was used; nothing was checked live.`:"",
     "The student reviewed all sources and is accountable for the final work."
   ].filter(Boolean).join(" ");
