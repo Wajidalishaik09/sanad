@@ -23,8 +23,8 @@ function saveStateSoon(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveStat
 const list = x => Array.isArray(x)?x:[];
 const text = x => typeof x==="string"?x:"";
 function cleanSource(s){
-  if(!s||!/^L\d+$/.test(s.id)||!text(s.doi)||s.opened!==true) return null;          // Gate 1 holds across a refresh
-  return {...s, title:text(s.title), abstract:text(s.abstract), venue:text(s.venue), type:text(s.type), note:text(s.note),
+  if(!s||!/^L\d+$/.test(s.id)||!(text(s.doi)||s.manual===true)||s.opened!==true) return null;          // Gate 1 holds across a refresh
+  return {...s, doi:text(s.doi), url:/^https?:\/\//.test(text(s.url))?s.url:"", fixes:list(s.fixes), title:text(s.title), abstract:text(s.abstract), venue:text(s.venue), type:text(s.type), note:text(s.note),
     folder:FOLDERS.includes(s.folder)?s.folder:"", authors:list(s.authors).map(String), tags:list(s.tags).map(String),
     topics:list(s.topics).map(String), volume:text(s.volume), issue:text(s.issue), pages:text(s.pages), grants:list(s.grants), mergedFrom:list(s.mergedFrom).map(String)};
 }

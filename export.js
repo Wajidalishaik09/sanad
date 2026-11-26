@@ -13,8 +13,8 @@ function apaAuthor(name){
   const given=full.slice(0,full.lastIndexOf(fam)).trim();
   return given?`${fam}, ${initials(given)}`:fam;
 }
-function apaAuthors(list){
-  const n=(list||[]).filter(Boolean).map(apaAuthor);
+function apaAuthors(list,whole){
+  const n=(list||[]).filter(Boolean).map(whole?String:apaAuthor);          // an organisation is printed as written
   if(n.length>20) return n.slice(0,19).join(", ")+", . . . "+n[n.length-1];
   return n.length>1 ? n.slice(0,-1).join(", ")+", & "+n[n.length-1] : n[0]||"";
 }
@@ -25,17 +25,18 @@ function apaSource(it){
 }
 const endStop = s => /[.?!]$/.test(s)?s:s+".";
 function apa(it,suffix=""){
-  const who=apaAuthors(it.authors), title=endStop(it.title||"[No title]"), src=apaSource(it);
+  const who=apaAuthors(it.authors,it.web), title=endStop(it.title||"[No title]"), src=apaSource(it);
   const year=it.year?it.year+suffix:"n.d."+(suffix?"-"+suffix:"");
-  const tail=[src&&endStop(src),it.doi&&`https://doi.org/${it.doi}`].filter(Boolean).join(" ");
-  return (who ? `${who} (${year}). ${title}` : `${title} (${year}).`)+(tail?" "+tail:"");
+  const tail=[src&&endStop(src),it.doi?`https://doi.org/${it.doi}`:it.url].filter(Boolean).join(" ");
+  return (who ? `${it.web?endStop(who):who} (${year}). ${title}` : `${title} (${year}).`)+(tail?" "+tail:"");
 }
-const firstSurname = it => norm((it.authors||[]).length?displayFamily(it.authors[0]):it.title);
-const NOT_VERIFIED = ["Not found","Wrong paper","Retracted"];
+const firstSurname = it => norm((it.authors||[]).length?(it.web?it.authors[0]:displayFamily(it.authors[0])):it.title);
+/* Every entry that is not Verified says so wherever it goes. */
+const exportMark = it => statusOf(it)==="Verified" ? "" : ` [${statusOf(it).toUpperCase()}]`;
 function referenceList(){
   const cited=citedSources(exportDraft()), from=cited.length?cited:[...LIB];
   const lines=from.sort((a,b)=>firstSurname(a).localeCompare(firstSurname(b))||apa(a).localeCompare(apa(b)))
-    .map(i=>apa(i,yearSuffix(i))+(NOT_VERIFIED.includes(auditOf(i))?" [NOT VERIFIED]":""));
+    .map(i=>apa(i,yearSuffix(i))+exportMark(i));
   const note=!LIB.length?"Approve a source to build the list.":cited.length?`Showing the ${cited.length} source(s) you cited.`:`Nothing is cited yet, so this shows all ${LIB.length} approved source(s).`;
   return {text:lines.join("\n\n"),note};
 }

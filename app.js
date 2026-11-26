@@ -157,13 +157,15 @@ async function doiRegistered(doi){
 }
 /* Best match for a title. OpenAlex first (covers arXiv and is less throttled), then Crossref.
    Returns null only if every database answered; otherwise throws. */
-async function findByTitle(title,surnames=[],min=T_PARTIAL){
+async function findByTitle(title,surnames=[],min=T_PARTIAL,line="",year=null){
   if(norm(title).length<6) return null;
   const score=r=>similarity(r.title,title)+(surnames.some(s=>r.authors.some(a=>sameFamily(familyName(a),s)))?0.1:0);
-  const best=rows=>rows.filter(r=>r.doi&&similarity(r.title,title)>=min).sort((a,b)=>score(b)-score(a))[0];
+  const rank=r=>score(r)+(year&&r.year===year?0.05:0);
+  const best=rows=>rows.filter(r=>r.doi&&similarity(r.title,title)>=min).sort((a,b)=>rank(b)-rank(a))[0];
+  const query=DEMO||!line?title:line;                          // demo recordings are keyed by title
   const searches=[
     async()=>((await getJSON(OPENALEX(`/works?per-page=8&filter=title.search:${encodeURIComponent(norm(title))}`))).results||[]).map(openalexRecord),
-    async()=>(((await getJSON(CROSSREF(`/works?rows=5&select=DOI,title,author,issued,container-title&query.bibliographic=${encodeURIComponent(title)}`))).message||{}).items||[]).map(crossrefRecord)
+    async()=>(((await getJSON(CROSSREF(`/works?rows=5&select=DOI,title,author,issued,container-title&query.bibliographic=${encodeURIComponent(query)}`))).message||{}).items||[]).map(crossrefRecord)
   ];
   let found=[], failed=null;
   for(const search of searches){
@@ -243,10 +245,10 @@ $$(".stage").forEach(b=>b.onclick=()=>goStage(+b.dataset.stage));
 /* ===================== library ===================== */
 let DRAFT=null, LIB=[], NEXT_ID=1;                                   // ids are never reused: an old claim must not point at a new paper
 const libPill = () => $("#libPill").textContent = `Library: ${LIB.length}`;
-const inLibrary = doi => LIB.find(x=>x.doi===doi||(x.mergedFrom||[]).includes(doi));
+const inLibrary = doi => doi?LIB.find(x=>x.doi===doi||(x.mergedFrom||[]).includes(doi)):undefined;
 function addToLibrary(rec,how){
   if(!rec.opened){ log("Sanad","Gate 1 stopped a source: its abstract was not opened","block"); return null; }
-  if(inLibrary(rec.doi)) return null;
+  if(inLibrary(rec.doi)&&!rec.keepSeparate) return null;
   const item={ id:"L"+(NEXT_ID++), opened:true, doi:rec.doi, title:rec.title, year:rec.year, venue:rec.venue||"",
     abstract:rec.abstract||"", how, retraction:rec.retraction||null,
     authors:(rec.authors||[]).map(a=>a.display_name||[a.given,a.family].filter(Boolean).join(" ")),
@@ -458,7 +460,11 @@ function judgeClaim(c,item){
   return c.quoteFound&&item.audit==="Verified"&&claimWithinQuote(c.text,c.quote) ? "Verified" : "Reported (not checked)";
 }
 async function auditSource(item){
-  try{ item.audit=(await verifyLine(apa(item),true)).badge; }catch(e){ item.audit="Cannot check"; }
+  if(item.web){ item.audit="Not checked"; return; }
+  let badge; try{ badge=(await verifyLine(apa(item),!item.manual)).badge; }catch(e){ badge="Cannot check"; }
+  if(badge==="Unconfirmed") badge="Not found";
+  if(badge==="Cannot check"&&item.manual&&item.audit&&item.audit!=="Cannot check") return;
+  item.audit=(item.fixes||[]).length&&badge==="Verified" ? "Mismatch" : badge;
 }
 async function auditor(draft){
   agent("auditor","run","verifying every reference");
@@ -709,8 +715,10 @@ function sourceCard(w,how="searched and approved"){
   const c=el("div","card"+(w.retraction?" bad":""));
   const t=el("div","c-top");
   t.appendChild(el("div","c-title",esc(w.title)));
-  if(w.retraction) t.appendChild(el("span","verdict bad","Retracted"));
+  const had0=inLibrary(w.doi), chip=statusChip(w.retraction?"Retracted":had0?statusOf(had0):w.checked||"Not checked");
+  t.appendChild(chip);
   c.appendChild(t);
+  if(w.retraction) c.appendChild(retractedBanner());
   const names=w.authors.slice(0,4).map(a=>esc(a.display_name||[a.given,a.family].filter(Boolean).join(" "))).join(", ");
   c.appendChild(el("div","c-meta",`${names}${w.authors.length>4?" et al.":""} · ${w.year||"n.d."} · ${esc(w.venue)} · <code>${esc(w.doi)}</code>`));
   const abs=el("div","c-abstract"); abs.hidden=true;
@@ -724,7 +732,8 @@ function sourceCard(w,how="searched and approved"){
     if(!w.opened){ w.opened=true; log("You",`opened the abstract of "${w.title.slice(0,50)}"`); }
     if(!ok.dataset.done) ok.disabled=false; };
   ok.onclick=()=>{ const it=addToLibrary(w,w.retraction?"approved as retracted":how);
-    ok.disabled=true; ok.dataset.done=1; ok.textContent=it?`In your library as ${it.id}`:"Already in library"; refreshGate1(); unlock(1); placeDemoDraft(); };
+    ok.disabled=true; ok.dataset.done=1; ok.textContent=it?`In your library as ${it.id}`:"Already in library"; refreshGate1(); unlock(1); placeDemoDraft();
+    if(it) auditSource(it).then(()=>{ chip.replaceWith(statusChip(statusOf(it))); saveState(); drawLibrary(); }); };
   row.append(open,ok); c.appendChild(row);
   return c;
 }
@@ -742,10 +751,11 @@ const kindOf = label => ({"Verified":"ok","AI reasoning":"info","Not found":"bad
 const AUDIT_BADGE={
   "Not found":["Reference not found","bad"], "Retracted":["Retracted","bad"], "Under notice":["Under notice","warn"],
   "Wrong paper":["Details do not match","bad"], "Wrong authors":["Details do not match","bad"], "Mismatch":["Details do not match","warn"],
-  "Cannot check":["Not yet verified","warn"]
+  "Cannot check":["Not yet verified","warn"], "Needs fix":["Needs fix","warn"], "Not checked":["Not checked","warn"]
 };
 const auditWord = a => a==="Cannot check"?"Not yet verified":a||"not audited";      // for references, on screen
-const auditOf = i => i.retraction&&!/concern/i.test(i.retraction) ? "Retracted" : i.audit;
+const auditOf = i => i.retraction&&!/concern/i.test(i.retraction) ? "Retracted" : i.web ? "Not checked"
+  : (i.fixes||[]).length&&!["Not found","Wrong paper","Wrong authors","Retracted"].includes(i.audit) ? "Needs fix" : i.audit;
 function badgeFor(c){
   const found=(c.srcs||[c.src]).map(id=>LIB.find(i=>i.id===id)).filter(i=>i&&AUDIT_BADGE[auditOf(i)]);
   if(!found.length) return {text:c.label,k:kindOf(c.label),note:""};
@@ -1027,6 +1037,7 @@ async function lookupDOI(doi){
 const CLOSEST=0.5;
 async function findClosest(out,cited){
   try{
+    out.searched.push(`closest-record search "${cited.title}"`);
     const s=await findByTitle(cited.title,cited.surnames,CLOSEST);
     if(!s||s.doi===cited.doi) return;
     out.suggestion=s;
@@ -1043,7 +1054,7 @@ function surnameShared(cited,rec,line){
 const titleNear=(cited,rec,line)=>similarity(rec.title,cited.title)>=T_PARTIAL||lineContainsTitle(line,rec.title);
 const titleSame=(cited,rec,line)=>similarity(rec.title,cited.title)>=T_MATCH||lineContainsTitle(line,rec.title);
 function unconfirmed(out,cited,rec,typedDoi){
-  out.badge="Unconfirmed"; out.klass="bad"; out.suggestion=rec; out.record=null;
+  out.badge="Unconfirmed"; out.klass="bad"; out.suggestion=rec; out.record=null; out.fixes=[];
   out.headline="Could not be verified as this reference";
   const bare=cited.title.length<6;
   out.closestHeading=bare&&typedDoi ? "The DOI you typed points to this record"
@@ -1055,13 +1066,21 @@ function unconfirmed(out,cited,rec,typedDoi){
 }
 const SEARCHED="Searched: Crossref and OpenAlex.";
 async function verifyLine(line,fromLibrary=false){
-  const cited={ doi:extractDOI(line), title:extractTitle(line), year:extractYear(line), surnames:extractSurnames(line) };
-  const out={ line, cited, checks:[], badge:null, klass:"", headline:"", note:"", record:null, suggestion:null };
+  const parsed=parseReference(line);
+  const cited={ doi:extractDOI(line), title:parsed.title, year:parsed.year, surnames:parsed.surnames };
+  const out={ line, cited, parsed, typedDoi:cited.doi, searched:[], fixes:[], checks:[], badge:null, klass:"", headline:"", note:"", record:null, suggestion:null };
   const typedDoi=!!cited.doi;
+  if(parsed.web){
+    out.badge="Not checked"; out.klass="warn"; out.headline="Web source: not checked in a scholarly database";
+    out.note="This is a web page. Open it yourself and check the author and date. Nothing was filled in for you.";
+    return out;
+  }
+  const byTitle=()=>out.searched.push(`OpenAlex title search "${cited.title}"`,`Crossref query.bibliographic "${DEMO?cited.title:line.slice(0,160)}"`);
+  if(typedDoi) out.searched.push(`Crossref and OpenAlex, DOI ${cited.doi}`);
 
   if(!typedDoi){
     const short=norm(cited.title).length<6;
-    let f=null; if(!short) try{ f=await findByTitle(cited.title,cited.surnames); }catch(e){ return cannotCheck(out,e); }
+    let f=null; if(!short) try{ byTitle(); f=await findByTitle(cited.title,cited.surnames,T_PARTIAL,line,cited.year); }catch(e){ return cannotCheck(out,e); }
     if(!f){
       out.checks.push(ck("No DOI given","unknown"),short?ck("Title too short to search","unknown"):ck("Title not found in Crossref or OpenAlex","fail"));
       out.badge="Not found"; out.klass="bad"; out.headline="Could not be verified: no matching record found";
@@ -1069,7 +1088,7 @@ async function verifyLine(line,fromLibrary=false){
       if(!short) await findClosest(out,cited);
       return out;
     }
-    cited.doi=f.doi; out.checks.push(ck("DOI recovered from title","pass"));
+    cited.doi=f.doi; out.checks.push(ck("DOI recovered from title","pass")); out.searched.push(`record read by its DOI ${f.doi}`);
   }
   const {rec,failed}=await lookupDOI(cited.doi);
   if(!rec){
@@ -1088,6 +1107,7 @@ async function verifyLine(line,fromLibrary=false){
     return out;
   }
   out.record=rec; out.checks.push(ck(`DOI resolves (${rec.source})`,"pass"));
+  out.fixes=findFixes(parsed,rec,line);
   const titleOK=checkTitle(out,cited,rec), authorsOK=checkAuthors(out,cited,rec);
   checkYear(out,cited,rec);
   out.checks.push(rec.retraction?ck(`Notice: ${rec.retraction.replace(/_/g," ")}`,"fail"):ck("No retraction notice","pass"));
@@ -1216,16 +1236,18 @@ $("#checkBtn").onclick=async()=>{
   const lines=$("#refInput").value.split("\n").map(s=>s.trim()).filter(Boolean);
   if(!lines.length) return;
   const box=$("#results"); box.innerHTML=""; $("#checkBtn").disabled=true;
+  const results=[], cards=[];
   for(let i=0;i<lines.length;i++){
     $("#status").innerHTML=`<span class="spin"></span> checking ${i+1} of ${lines.length}`;
     let r; try{ r=await verifyLine(lines[i]); }
-    catch(e){ r={line:lines[i],cited:{},checks:[ck("Network error","unknown")],badge:"Cannot check",klass:"warn",headline:"Not yet verified: could not reach Crossref/OpenAlex",
+    catch(e){ const p=parseReference(lines[i]); r={line:lines[i],parsed:p,cited:{title:p.title},searched:[],fixes:[],checks:[ck("Network error","unknown")],badge:"Cannot check",klass:"warn",headline:"",
       note:"We could not reach the database. That is not evidence that the reference is fake."}; }
-    box.appendChild(renderResult(r));
-    stats.total++; if(r.klass==="ok")stats.ok++; if(r.klass==="bad")stats.bad++;
+    const card=renderCheckCard(r); box.appendChild(card); results.push(r); cards.push(card);
+    stats.total++; const s=resultStatus(r); if(s==="Verified")stats.ok++; if(STATUS[s]==="bad")stats.bad++;
     $("#cTotal").textContent=stats.total; $("#cOk").textContent=stats.ok; $("#cBad").textContent=stats.bad;
-    await wait(380);
+    await wait(250);
   }
+  flagListDuplicates(results,cards);
   $("#status").textContent=""; $("#checkBtn").disabled=false;
 };
 
