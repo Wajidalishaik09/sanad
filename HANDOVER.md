@@ -51,7 +51,7 @@ similar real paper is shown below the verdict, never as the verdict. Internal na
 `Unconfirmed`) are used in code; `headline` is what is shown.
 
 **Export** (`export.js`). The APA 7 list and the short AI use statement are always available. Gate 2 still governs
-the student's text and the full statement. References that failed audit end with [NOT VERIFIED].
+the student's text and the full statement. Every reference ends with its status label, Verified included.
 
 ---
 

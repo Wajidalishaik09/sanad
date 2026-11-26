@@ -29,6 +29,8 @@ be verified". If Crossref or OpenAlex could not be reached it is amber, "Not yet
 ## Export
 
 The APA 7 list (copy or .txt) and a short AI use statement built from the activity log are always available.
+Every entry in the list and in both AI use statements ends with its status, Verified included. A legend line
+tops the list, and a work kept twice is printed once, with the more serious status.
 
 ## Files
 
