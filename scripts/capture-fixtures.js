@@ -16,7 +16,7 @@ const NCBI = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&r
 /* ---------- what to record ---------- */
 const PAPERS = [{ doi: "10.1371/journal.pmed.0020124", pmcid: "PMC1182327" },     // Ioannidis 2005
                 { doi: "10.1371/journal.pone.0005738", pmcid: "PMC2685008" }];    // Fanelli 2009
-const RETRACTED = "10.1016/s0140-6736(97)11096-0";                                // Wakefield 1998
+const RETRACTED = "10.1016/s0140-6736(20)31180-6";                               // Mehra et al. 2020
 const WRONG_DOI = "10.1038/s41586-021-03819-2";                                   // AlphaFold, pasted with another title
 const FAKE_DOI  = "10.1016/j.jai.2023.119284";                                    // never registered
 const TITLES = ["deep residual learning for image recognition",                   // the paper the wrong DOI was meant for
