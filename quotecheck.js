@@ -114,6 +114,7 @@ const cacheKey=doi=>"/fulltext-cache/"+encodeURIComponent(doi);
 async function fromCache(doi){ try{ const r=await (await caches.open("sanad-fulltext")).match(cacheKey(doi)); const t=r&&await r.json(); return Array.isArray(t)&&t.every(x=>typeof x==="string")&&t.length?t:null; }catch(e){ return null; } }
 async function toCache(doi,texts){ try{ await (await caches.open("sanad-fulltext")).put(cacheKey(doi),new Response(JSON.stringify(texts))); }catch(e){} }
 async function loadFullText(item){
+  if(!item.doi) return FULLTEXT[""]={state:"none"};                 // never search for an empty DOI
   const had=FULLTEXT[item.doi];
   if(had&&(had.state==="full"||had.state==="none")) return had;
   if(had&&had.state==="loading") return had.promise;

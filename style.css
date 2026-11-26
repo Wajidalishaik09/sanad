@@ -295,3 +295,13 @@ main{padding-top:20px;} .mast-in{padding-top:10px;padding-bottom:10px;}
 .copy-box{position:fixed;left:20px;bottom:20px;width:420px;height:90px;z-index:60;}
 summary{cursor:pointer;font-size:18px;font-weight:700;}
 #shortOut{white-space:pre-wrap;}
+
+/* ================= status per reference ================= */
+.status{display:inline-block;font-size:18px;font-weight:700;border:2px solid;padding:3px 11px;margin:0 10px 6px 0;white-space:nowrap;}
+.status.ok{color:var(--ok);background:var(--ok-bg);} .status.warn{color:var(--warn);background:var(--warn-bg);} .status.bad{color:var(--bad);background:var(--bad-bg);}
+.retracted-banner{background:var(--bad);color:#fff;font-weight:700;font-size:20px;padding:11px 15px;margin:8px 0;}
+.why,.searched,.fix,.decide,.dup-panel,.merge{font-size:18px;} .why{margin:0 0 10px;font-weight:700;} .searched{margin-top:12px;color:var(--ink-2);overflow-wrap:anywhere;}
+.decide{margin-top:12px;} .fix{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--warn-bg);padding:8px 12px;margin:6px 0;} .fix span{flex:1 1 260px;}
+.dup-panel{border:2px solid var(--warn);padding:12px 15px;margin-top:12px;} .dup-flag{font-weight:700;color:var(--warn);font-size:18px;margin-bottom:8px;}
+.dup-two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px;font-size:18px;overflow-wrap:anywhere;} .columns>div{background:var(--sunk);padding:10px 12px;}
+.merge fieldset{border:1px solid var(--rule);padding:6px 10px;margin:8px 0;} .merge label{display:block;}

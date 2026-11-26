@@ -62,7 +62,7 @@ function flagsOf(i){
 
 /* ---------- duplicates: suggested here, decided by the student ---------- */
 const DUP=0.90;                           // Dice on bigrams
-const pairKey=(a,b)=>[a.doi,b.doi].sort().join("|");
+const pairKey=(a,b)=>[a.doi||a.id,b.doi||b.id].sort().join("|");
 const isPreprint=i=>/preprint|arxiv|biorxiv|medrxiv|ssrn/i.test([i.type,i.venue,i.doi].join(" "));
 function duplicatePairs(){
   const out=[];
@@ -192,6 +192,10 @@ function libraryCard(i){
   c.appendChild(el("div","c-title",`<span class="src">${i.id}</span> ${esc(i.title)}`));
   c.appendChild(el("div","c-meta",`${esc(i.authors.slice(0,3).join(", "))}${i.authors.length>3?" et al.":""} · ${i.year||"n.d."} · ${esc(i.venue)} · <code>${esc(i.doi)}</code>${i.mergedFrom.length?` · includes ${esc(i.mergedFrom.join(", "))}`:""}`));
   const flags=el("div","checks"); flagsOf(i).forEach(([l,k])=>flags.appendChild(el("span","check "+k,esc(l)))); c.appendChild(flags);
+  c.querySelector(".c-title").before(statusChip(statusOf(i)));
+  if(statusOf(i)==="Retracted") c.appendChild(retractedBanner());
+  if(i.web) c.appendChild(el("div","why",`Web source: not checked in a scholarly database. <a class="out" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">Open the page</a>`));
+  c.appendChild(fixRows(i,changed));
   c.appendChild(accessChip(i));
   c.appendChild(tagRow(i));
   const row=el("div","lib-row");

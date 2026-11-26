@@ -20,7 +20,7 @@ function displayFamily(name){
   return p.slice(n).join(" ");
 }
 function shortAuthors(item){
-  const f=item.authors.filter(Boolean).map(displayFamily);
+  const f=item.authors.filter(Boolean).map(a=>item.web?String(a):displayFamily(a));
   if(!f.length) return `“${item.title.split(/\s+/).slice(0,4).join(" ")}”`;
   return f.length===1?f[0]:f.length===2?`${f[0]} & ${f[1]}`:`${f[0]} et al.`;
 }
