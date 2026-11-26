@@ -8,7 +8,8 @@
 const MODE_KEY="sanad.mode";
 const DEMO=(()=>{ try{ return localStorage.getItem(MODE_KEY)==="demo"; }catch(e){ return false; } })();
 const NOT_IN_DEMO="Not in demo data";
-const recordedOn=new Date(FIXTURE_DATA.capturedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+/* Every day on which something was recorded, so the banner never implies a single capture. */
+const recordedOn=[...new Set(FIXTURE_DATA.entries.map(e=>new Date(e.capturedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})))].join(" and ");
 
 /* One spelling per request, however it was encoded. */
 function requestKey(url){
@@ -37,7 +38,7 @@ const DEMO_PAPERS=["10.1371/journal.pmed.0020124","10.1371/journal.pone.0005738"
 const DEMO_REFERENCES=[
   "Ioannidis, J. P. A. (2005). Why most published research findings are false. PLoS Medicine, 2(8), e124. https://doi.org/10.1371/journal.pmed.0020124",
   "Fanelli, D. (2009). How many scientists fabricate and falsify research? A systematic review and meta-analysis of survey data. PLoS ONE, 4(5), e5738. https://doi.org/10.1371/journal.pone.0005738",
-  "Wakefield, A. J. (1998). Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children. The Lancet, 351(9103), 637-641. https://doi.org/10.1016/S0140-6736(97)11096-0",
+  "Mehra, M. R., Desai, S. S., Ruschitzka, F., & Patel, A. N. (2020). Hydroxychloroquine or chloroquine with or without a macrolide for treatment of COVID-19: a multinational registry analysis. The Lancet. https://doi.org/10.1016/S0140-6736(20)31180-6",
   "He, K., Zhang, X., Ren, S., & Sun, J. (2016). Deep residual learning for image recognition. https://doi.org/10.1038/s41586-021-03819-2",
   "Smith, J. R. (2023). Transformer architectures for automated citation integrity. Journal of Applied Informatics. https://doi.org/10.1016/j.jai.2023.119284",
   "Ioannidis, J. P. A. (2021). Why most citation managers cannot detect invented references."

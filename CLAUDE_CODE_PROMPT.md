@@ -89,7 +89,7 @@ The key must never appear in `app.js`. The repo is public.
   `query.bibliographic` where possible. Keep requests spaced; honour `Retry-After`.
 - **A Crossref 404 does not mean fake.** arXiv (10.48550), Zenodo and dataset DOIs are registered with
   DataCite. Check OpenAlex before labelling anything "not found".
-- **Author matching:** "Vaswani, A.", "Ashish Vaswani" and "A Vaswani" are one person. Compare family
+- **Author matching:** "Hopper, G.", "Grace Hopper" and "G Hopper" are one person. Compare family
   names only, normalised (NFKD, strip diacritics, lowercase, strip punctuation), with fuzzy similarity
   ≥0.85. Arabic transliteration varies (Mohammed/Muhammad, El-/Al-). A naive string compare will flag
   real references as fake on stage.

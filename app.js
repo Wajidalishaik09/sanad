@@ -1227,9 +1227,9 @@ function showPanel(id){
 $("#stressBtn").onclick=$("#checkRefBtn").onclick=()=>{ showPanel("#sx"); $("#refInput").focus({preventScroll:true}); };
 $("#backBtn").onclick=()=>goStage(unlocked);
 $("#demoBtn").onclick=()=>{ $("#refInput").value=[
-  "Vaswani, A., Shazeer, N., Parmar, N. (2017). Attention is all you need. https://doi.org/10.48550/arXiv.1706.03762",
+  "Kingma, D. P., & Ba, J. (2014). Adam: A method for stochastic optimization. https://doi.org/10.48550/arXiv.1412.6980",
   "Jumper, J. et al. (2021). Highly accurate protein structure prediction with AlphaFold. 10.1038/s41586-021-03819-2",
-  "Vaswani, A. (2017). Deep residual learning for image recognition. https://doi.org/10.1038/s41586-021-03819-2",
+  "He, K., Zhang, X. (2016). Deep residual learning for image recognition. https://doi.org/10.1038/s41586-021-03819-2",
   "Smith, J. R. (2023). Transformer architectures for automated citation integrity. Journal of Applied Informatics. 10.1016/j.jai.2023.119284",
   "Chen, L. (2022). A unified framework for reference verification in academic writing."
 ].join("\n"); };
