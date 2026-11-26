@@ -135,8 +135,8 @@ const VERDICTS={
   abstract:  {label:"Found in abstract",                         k:"ok",  found:true},
   close:     {label:"Close paraphrase, not the exact words",     k:"warn"},
   notFound:  {label:"Not found in full text",                    k:"bad"},
-  notAbstract:{label:"Not in abstract; full text not checked",   k:"warn"},
-  cannot:    {label:"Cannot check",                              k:"info"}
+  notAbstract:{label:"Not in abstract; full text not available to check", k:"warn"},
+  cannot:    {label:"Could not check this quote",                              k:"info"}
 };
 const verdict=(name,item,match,why)=>({name,...VERDICTS[name],id:item.id,match:match||"",why:why||""});
 /* A one-word change can look alike and mean the opposite. */

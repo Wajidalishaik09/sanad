@@ -305,3 +305,4 @@ summary{cursor:pointer;font-size:18px;font-weight:700;}
 .dup-panel{border:2px solid var(--warn);padding:12px 15px;margin-top:12px;} .dup-flag{font-weight:700;color:var(--warn);font-size:18px;margin-bottom:8px;}
 .dup-two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px;font-size:18px;overflow-wrap:anywhere;} .columns>div{background:var(--sunk);padding:10px 12px;}
 .merge fieldset{border:1px solid var(--rule);padding:6px 10px;margin:8px 0;} .merge label{display:block;}
+.confirm-box{padding:10px 14px;font-size:18px;} .at-item .status{font-size:15px;padding:1px 7px;font-style:normal;} .at-item .retracted-banner{font-size:15px;padding:4px 8px;}

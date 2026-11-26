@@ -222,3 +222,75 @@ function flagListDuplicates(results,cards){
     if(i>=0) cards[j].querySelector(".headline").after(el("div","dup-flag",`Duplicate of line ${i+1}: ${esc(results[i].entry.title)}`));
   });
 }
+
+/* ---------- Ask: a request for something that may not exist ---------- */
+const ASK_FILLER=new Set("give me show find list get provide three two five some any studies study papers paper research articles article peer reviewed measure measures measured please that how".split(" "));
+/* Names and years the student asked about, taken from their own words. */
+function askedNames(question){
+  const words=String(question).replace(/[^\p{L}\p{N}\s'-]/gu," ").split(/\s+/).filter(Boolean);
+  return [...new Set(words.filter((w,i)=>(i>0&&/^\p{Lu}/u.test(w))||/^(19|20)\d\d$/.test(w)).map(norm).filter(w=>w&&!ASK_FILLER.has(w)))];
+}
+const coversNames = (rec,names) => { const have=` ${norm(rec.title+" "+rec.abstract+" "+rec.venue)} `; return names.filter(n=>have.includes(` ${n} `)).length/names.length>=0.6; };
+const topicWords = (question,names) => contentWords(question).filter(w=>!ASK_FILLER.has(w)&&!names.includes(w));
+/* Real records only. Each is checked by the Auditor before it is shown. */
+async function checkedCards(box,rows){
+  for(const w of rows){
+    const t={...w, authors:recordNames(w), url:""}; await auditSource(t); w.checked=statusOf(t);
+    box.appendChild(sourceCard(w));
+  }
+}
+async function showAnswer(question,rows){
+  const names=askedNames(question), specific=names.length>=2;
+  const matches=specific?rows.filter(r=>coversNames(r,names)):rows;
+  if(matches.length){ renderSources(matches); return; }
+  const searched=[`OpenAlex search "${norm(question)}"`];
+  let related=rows.slice(0,3);
+  const topic=topicWords(question,names).join(" ");
+  if(!related.length&&topic){
+    searched.push(`OpenAlex search "${topic}"`);
+    related=((await getJSON(OPENALEX(`/works?per-page=3&search=${searchWords(topic)}`))).results||[]).map(openalexRecord).filter(r=>r.doi);
+  }
+  const box=$("#sourceList"); box.innerHTML="";
+  box.appendChild(el("div","card bad",`<div class="verdict headline bad">Not found</div><div class="note bad">No source matching what you asked for was found. Sanad does not write study titles to fill the gap.</div>
+    <div class="searched"><b>Searched:</b> ${searched.map(esc).join("; ")}</div>`));
+  agent("scout","done","Not found"); log("Scout",`Not found for "${question.slice(0,80)}"; ${related.length} related record(s) shown separately`);
+  if(related.length){
+    box.appendChild(el("h3","sub","Related real sources (not what you asked for)"));
+    await checkedCards(box,related);
+  }
+}
+
+/* ---------- a retracted source needs a tick before it can be cited ---------- */
+function confirmRetracted(id,then){
+  const box=$("#atMenu"), at=menuAt; box.innerHTML=""; box.hidden=false;
+  const panel=el("div","confirm-box",`<div class="retracted-banner">RETRACTED: ${esc(sourceById(id).title)}</div><label><input type="checkbox"> I know this paper is retracted and I still want to cite it.</label>`);
+  panel.onmousedown=e=>{ if(e.target.tagName!=="INPUT") e.preventDefault(); };
+  const row=el("div","row"), go=button("Cite it",()=>{ menuAt=at; log("You",`confirmed citing the retracted source ${id}`); then(); },"btn small");
+  go.disabled=true; panel.querySelector("input").onchange=e=>{ go.disabled=!e.target.checked; };
+  row.append(go,button("Do not cite",closeMenu)); panel.appendChild(row); box.appendChild(panel);
+}
+
+/* ---------- "check this quote": never confirmed unless the words are found ---------- */
+function readQuoteRequest(line){
+  const m=String(line).match(/^([^"“]*)["“](.{12,})["”][.,]?\s*\(([^()]*?)((?:19|20)\d{2})[a-z]?[^()]*\)/);
+  if(!m||(m[1].trim()&&!/quot/i.test(m[1]))) return null;
+  return { quote:m[2], names:m[3].split(/,|&|\band\b|et al\.?/).map(x=>norm(x)).filter(Boolean), year:+m[4] };
+}
+async function quoteCard(line,q){
+  const item=LIB.find(i=>i.year===q.year&&q.names.length&&(i.authors||[]).some(a=>sameFamily(familyName({display_name:a}),q.names[0])));
+  let head="Full text not available to check", k="warn", why="No source in your library matches that author and year. Add it first, then check again.", match="";
+  if(item){
+    await loadFullText(item);
+    const v=checkQuote(q.quote,item); why=`${item.id}: ${v.label}. ${v.why}`; match=v.match;
+    if(v.found){ head="Words found in the source"; k="ok"; }
+    else if(v.name==="notFound"||v.name==="close"){ head="Quote could not be found"; k="bad"; }
+  }
+  log("Quote Checker",`checked a pasted quote: ${head}`);
+  return el("div","card "+k,`<div class="verdict headline ${k}">${esc(head)}</div><div class="c-cited">You asked about: ${esc(line)}</div><div class="note ${k}">${esc(why)}${match?`<br>Source says: “${esc(match)}”`:""}</div>`);
+}
+
+/* ---------- for the AI-use statement ---------- */
+function referenceWarnings(){
+  const all=LIB.map(statusOf), n=s=>all.filter(x=>x===s).length;
+  return `Library references not Verified: ${all.length-n("Verified")} of ${all.length}; retracted: ${n("Retracted")}.`;
+}
