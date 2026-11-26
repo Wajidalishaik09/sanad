@@ -31,14 +31,31 @@ function apa(it,suffix=""){
   return (who ? `${it.web?endStop(who):who} (${year}). ${title}` : `${title} (${year}).`)+(tail?" "+tail:"");
 }
 const firstSurname = it => norm((it.authors||[]).length?(it.web?it.authors[0]:displayFamily(it.authors[0])):it.title);
-/* Every entry that is not Verified says so wherever it goes. */
-const exportMark = it => statusOf(it)==="Verified" ? "" : ` [${statusOf(it).toUpperCase()}]`;
+/* Every entry says its status wherever it goes, Verified included. */
+const statusLabel = s => `[${s.toUpperCase()}]`;
+const statusLegend = () => `Status labels: ${Object.keys(STATUS).map(statusLabel).join(" ")}`;
+/* A work kept twice is printed once. If the copies differ, the most serious status
+   is shown, so a Verified copy never hides a retracted one. */
+const SEVERITY=["Retracted","Mismatch","Not found","Needs fix","Not checked","Verified"];
+const severity = it => SEVERITY.indexOf(statusOf(it));
+function listEntries(){
+  const cited=citedSources(exportDraft()), from=cited.length?cited:LIB;
+  const works=[];
+  from.forEach(i=>{ const copies=LIB.filter(o=>sameListed(o,i)).sort((a,b)=>severity(a)-severity(b));
+    if(!works.some(w=>sameListed(w,copies[0]))) works.push(copies[0]); });
+  const lines=works.sort((a,b)=>firstSurname(a).localeCompare(firstSurname(b))||apa(a).localeCompare(apa(b)))
+    .map(i=>`${apa(i,yearSuffix(i))} ${statusLabel(statusOf(i))}`);
+  return {lines,cited:cited.length};
+}
 function referenceList(){
-  const cited=citedSources(exportDraft()), from=cited.length?cited:[...LIB];
-  const lines=from.sort((a,b)=>firstSurname(a).localeCompare(firstSurname(b))||apa(a).localeCompare(apa(b)))
-    .map(i=>apa(i,yearSuffix(i))+exportMark(i));
-  const note=!LIB.length?"Approve a source to build the list.":cited.length?`Showing the ${cited.length} source(s) you cited.`:`Nothing is cited yet, so this shows all ${LIB.length} approved source(s).`;
-  return {text:lines.join("\n\n"),note};
+  const {lines,cited}=listEntries();
+  const note=!LIB.length?"Approve a source to build the list.":cited?`Showing the ${lines.length} work(s) you cited.`:`Nothing is cited yet, so this shows all ${lines.length} approved work(s).`;
+  return {text:lines.length?[statusLegend(),...lines].join("\n\n"):"",note};
+}
+/* The same entries, for the AI use statements. */
+function statementEntries(){
+  const {lines}=listEntries();
+  return lines.length?["References and their status:",...lines]:[];
 }
 
 /* ---------- copy and download ---------- */
@@ -73,7 +90,7 @@ function shortStatement(){
   const runs=modelRuns(), claims=exportDraft().claims, ok=claims.filter(c=>c.label==="Verified").length;
   const jobs=Object.keys(AGENT_JOBS).filter(a=>LOG.some(e=>e.who===a)).map(a=>`${a} ${AGENT_JOBS[a]}`);
   const copied=LOG.some(e=>e.who==="Scribe"&&/by extraction/.test(e.what));
-  return [
+  const summary=[
     runs.length?`AI models used in Sanad: ${runs.join("; ")}.`:"No AI was used.",
     copied?"Scribe also copied sentences from abstracts without a model.":"",
     jobs.length?`Automated steps without AI: ${jobs.join("; ")}.`:"",
@@ -83,6 +100,7 @@ function shortStatement(){
     DEMO?`Demo data recorded on ${recordedOn} was used; nothing was checked live.`:"",
     "The student reviewed all sources and is accountable for the final work."
   ].filter(Boolean).join(" ");
+  return [summary,...statementEntries()].join("\n\n");
 }
 
 /* ---------- on the Export screen ---------- */

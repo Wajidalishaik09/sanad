@@ -71,6 +71,8 @@ function duplicatePairs(){
   }));
   return out;
 }
+/* One work for the reference list. A pair the student called different stays two. */
+const sameListed=(a,b)=>a===b||!!(a.doi&&b.doi&&a.doi.toLowerCase()===b.doi.toLowerCase())||(!DISMISSED.includes(pairKey(a,b))&&sameWork(a,b));
 function sharedAuthors(a,b){
   const fam=i=>i.authors.map(n=>familyName({display_name:n}));
   return fam(a).filter(x=>fam(b).some(y=>sameFamily(x,y))).length;

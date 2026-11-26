@@ -26,9 +26,12 @@ function shortAuthors(item){
 }
 /* APA: two cited works that look the same get 2020a, 2020b. */
 function yearSuffix(item){
-  const same=citedSources(exportDraft()).filter(i=>shortAuthors(i)===shortAuthors(item)&&i.year===item.year);
-  if(same.length<2||!same.includes(item)) return "";
-  return "abcdefghij"[same.sort((a,b)=>a.title.localeCompare(b.title)).indexOf(item)]||"";
+  const cited=citedSources(exportDraft()); if(!cited.includes(item)) return "";
+  const same=[];                                                    // one per work: a second copy gets no letter of its own
+  cited.filter(i=>shortAuthors(i)===shortAuthors(item)&&i.year===item.year)
+    .forEach(i=>{ if(!same.some(w=>sameListed(w,i))) same.push(i); });
+  if(same.length<2) return "";
+  return "abcdefghij"[same.sort((a,b)=>a.title.localeCompare(b.title)).findIndex(w=>sameListed(w,item))]||"";
 }
 function inText(id){
   const i=sourceById(id); if(!i) return "(source removed)";

@@ -986,6 +986,8 @@ function aiStatement(draft){
     `AI output refused by Sanad: ${REFUSED}.`,
     referenceWarnings(),
     "",
+    ...statementEntries(),
+    "",
     "No reference in this work was written by an AI system. Every citation was retrieved from a",
     "scholarly database. The author is responsible for the final text.",
     "",
